@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rexius Fleet — QR Generator</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+
+:root {
+  --bg: #0f0f0f;
+  --surface: #1a1a1a;
+  --border: #2a2a2a;
+  --border-light: #333;
+  --green: #22c55e;
+  --green-dim: #166534;
+  --amber: #f59e0b;
+  --red: #ef4444;
+  --text: #e5e5e5;
+  --text-dim: #888;
+  --text-muted: #555;
+  --mono: 'IBM Plex Mono', monospace;
+  --sans: 'IBM Plex Sans', sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--sans); background: var(--bg); color: var(--text); min-height: 100vh; }
+
+/* HEADER */
+.header {
+  border-bottom: 1px solid var(--border);
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  z-index: 100;
+}
+.header-left { display: flex; align-items: center; gap: 16px; }
+.logo { font-family: var(--mono); font-size: 13px; font-weight: 600; color: var(--green); letter-spacing: 0.1em; }
+.header-title { font-size: 14px; font-weight: 500; color: var(--text-dim); }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+.header-right { display: flex; align-items: center; gap: 10px; }
+
+/* CONTROLS BAR */
+.controls {
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.search-box {
+  font-family: var(--mono);
+  font-size: 13px;
+  padding: 7px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border-light);
+  background: var(--surface);
+  color: var(--text);
+  width: 220px;
+}
+.search-box:focus { outline: none; border-color: var(--green); }
+.filter-btn {
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border-light);
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all 0.12s;
+  white-space: nowrap;
+}
+.filter-btn:hover { border-color: var(--green); color: var(--green); }
+.filter-btn.active { background: var(--green-dim); border-color: var(--green); color: var(--green); }
+.divider { width: 1px; height: 24px; background: var(--border); }
+.count-badge {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+/* ACTION BUTTONS */
+.btn {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 7px 14px;
+  border-radius: 6px;
+  border: 1px solid;
+  cursor: pointer;
+  transition: all 0.12s;
+  white-space: nowrap;
+}
+.btn-primary { background: var(--green); border-color: var(--green); color: #000; }
+.btn-primary:hover { opacity: 0.85; }
+.btn-outline { background: transparent; border-color: var(--border-light); color: var(--text-dim); }
+.btn-outline:hover { border-color: var(--green); color: var(--green); }
+.btn-amber { background: transparent; border-color: var(--amber); color: var(--amber); }
+.btn-amber:hover { background: rgba(245,158,11,0.1); }
+.btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+/* MAIN LAYOUT */
+.main { display: flex; height: calc(100vh - 97px); overflow: hidden; }
+
+/* ASSET PANEL */
+.asset-panel {
+  width: 320px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.team-group { border-bottom: 1px solid var(--border); }
+.team-header {
+  padding: 10px 16px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  cursor: pointer;
+  user-select: none;
+}
+.team-header:hover { color: var(--text-dim); }
+.team-count { font-weight: 400; opacity: 0.6; }
+.asset-row {
+  display: flex;
+  align-items: center;
+  padding: 8px 16px;
+  gap: 10px;
+  cursor: pointer;
+  transition: background 0.1s;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+.asset-row:hover { background: rgba(255,255,255,0.04); }
+.asset-row.selected { background: rgba(34,197,94,0.08); }
+.asset-cb { width: 14px; height: 14px; border: 1px solid var(--border-light); border-radius: 3px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.asset-row.selected .asset-cb { background: var(--green); border-color: var(--green); }
+.asset-cb-check { width: 8px; height: 8px; display: none; }
+.asset-row.selected .asset-cb-check { display: block; }
+.asset-num { font-family: var(--mono); font-size: 12px; font-weight: 500; color: var(--text); min-width: 70px; }
+.asset-desc { font-size: 11px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
+.asset-status { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.status-in { background: var(--green); }
+.status-out { background: var(--red); }
+
+/* QR PREVIEW PANEL */
+.preview-panel {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.preview-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 12px;
+  color: var(--text-muted);
+}
+.preview-empty-icon { font-size: 48px; opacity: 0.3; }
+.preview-empty p { font-family: var(--mono); font-size: 13px; }
+
+.preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+.preview-title { font-family: var(--mono); font-size: 13px; color: var(--text-dim); }
+
+/* QR GRID */
+.qr-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 16px;
+}
+.qr-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  transition: border-color 0.12s;
+}
+.qr-card:hover { border-color: var(--border-light); }
+.qr-canvas-wrap {
+  background: #fff;
+  padding: 8px;
+  border-radius: 4px;
+  width: 140px;
+  height: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.qr-canvas-wrap canvas { display: block; }
+.qr-label { font-family: var(--mono); font-size: 11px; font-weight: 600; color: var(--text); text-align: center; letter-spacing: 0.05em; }
+.qr-sublabel { font-size: 10px; color: var(--text-muted); text-align: center; }
+.qr-dl-btn {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--border-light);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.1s;
+  width: 100%;
+  text-align: center;
+}
+.qr-dl-btn:hover { border-color: var(--green); color: var(--green); }
+
+/* PRINT SHEET */
+.print-sheet { display: none; }
+
+@media print {
+  body > *:not(.print-sheet) { display: none !important; }
+  .print-sheet {
+    display: block !important;
+    width: 8.5in;
+    padding: 0.4in;
+  }
+  .print-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.15in;
+  }
+  .print-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0.08in;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    width: 1.9in;
+    height: 1.9in;
+    justify-content: center;
+    gap: 4px;
+    page-break-inside: avoid;
+  }
+  .print-cell canvas { width: 1.4in !important; height: 1.4in !important; }
+  .print-label {
+    font-family: monospace;
+    font-size: 9pt;
+    font-weight: bold;
+    text-align: center;
+  }
+  .print-url {
+    font-family: monospace;
+    font-size: 6pt;
+    color: #666;
+    text-align: center;
+    word-break: break-all;
+  }
+}
+
+/* URL CONFIG */
+.url-config {
+  padding: 10px 24px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--surface);
+}
+.url-label { font-family: var(--mono); font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+.url-input {
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 5px 10px;
+  border-radius: 5px;
+  border: 1px solid var(--border-light);
+  background: var(--bg);
+  color: var(--green);
+  flex: 1;
+  max-width: 480px;
+}
+.url-input:focus { outline: none; border-color: var(--green); }
+
+/* LOADING */
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  flex-direction: column;
+  gap: 12px;
+  color: var(--text-muted);
+  font-family: var(--mono);
+  font-size: 13px;
+}
+.spinner {
+  width: 24px; height: 24px;
+  border: 2px solid var(--border);
+  border-top-color: var(--green);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* TOAST */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  padding: 10px 16px;
+  background: var(--surface);
+  border: 1px solid var(--green);
+  border-radius: 6px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--green);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: all 0.2s;
+  z-index: 1000;
+}
+.toast.show { opacity: 1; transform: translateY(0); }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-left">
+    <div class="logo">REXIUS</div>
+    <div class="header-title">QR Code Generator</div>
+    <div class="status-dot" id="statusDot" style="background:var(--amber)"></div>
+  </div>
+  <div class="header-right">
+    <button class="btn btn-outline" onclick="selectAll()">Select All</button>
+    <button class="btn btn-outline" onclick="clearSelection()">Clear</button>
+    <button class="btn btn-amber" onclick="printSelected()" id="printBtn" disabled>Print Sheet</button>
+    <button class="btn btn-primary" onclick="downloadZip()" id="zipBtn" disabled>↓ Download ZIP</button>
+  </div>
+</div>
+
+<!-- URL CONFIG -->
+<div class="url-config">
+  <span class="url-label">Base URL:</span>
+  <input class="url-input" id="baseUrl" value="https://toduddkyttuablausist.supabase.co/storage/v1/object/public/public-tools/rexius-inspection.html?asset=" oninput="regenerateVisible()">
+  <span class="url-label" style="color:var(--text-muted);font-size:10px">QR encodes: {base_url}{asset_number}</span>
+</div>
+
+<!-- CONTROLS -->
+<div class="controls">
+  <input class="search-box" id="searchBox" placeholder="Search asset..." oninput="filterAssets()">
+  <div class="divider"></div>
+  <button class="filter-btn active" data-team="all" onclick="setTeamFilter('all')">All</button>
+  <button class="filter-btn" data-team="team_g" onclick="setTeamFilter('team_g')">G Group</button>
+  <button class="filter-btn" data-team="team_m" onclick="setTeamFilter('team_m')">M Group</button>
+  <button class="filter-btn" data-team="team_c" onclick="setTeamFilter('team_c')">C Group</button>
+  <button class="filter-btn" data-team="team_b" onclick="setTeamFilter('team_b')">B Group</button>
+  <button class="filter-btn" data-team="team_l" onclick="setTeamFilter('team_l')">L Group</button>
+  <button class="filter-btn" data-team="team_equipment" onclick="setTeamFilter('team_equipment')">Equipment</button>
+  <button class="filter-btn" data-team="team_rexius" onclick="setTeamFilter('team_rexius')">Rexius</button>
+  <span class="count-badge" id="countBadge">Loading...</span>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+  <!-- ASSET LIST -->
+  <div class="asset-panel" id="assetPanel">
+    <div class="loading"><div class="spinner"></div>Loading assets...</div>
+  </div>
+
+  <!-- QR PREVIEW -->
+  <div class="preview-panel" id="previewPanel">
+    <div class="preview-empty">
+      <div class="preview-empty-icon">⬛</div>
+      <p>Select assets to generate QR codes</p>
+    </div>
+  </div>
+</div>
+
+<!-- PRINT SHEET (hidden, shown on print) -->
+<div class="print-sheet" id="printSheet"></div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPA = 'https://toduddkyttuablausist.supabase.co';
+const KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRvZHVkZGt5dHR1YWJsYXVzaXN0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NjY5MTEsImV4cCI6MjA5NjI0MjkxMX0.ZdtMIuc9kEo7-x0Lr-y2--F1aqkurbLJ0YxeQD2ggDQ'; // Replace: Supabase dashboard → Settings → API → anon public
+const HDRS = { apikey: KEY, Authorization: `Bearer ${KEY}` };
+
+let allAssets = [];
+let selected = new Set();
+let teamFilter = 'all';
+let searchQuery = '';
+let qrCache = {};
+
+// Load assets
+async function loadAssets() {
+  try {
+    const r = await fetch(`${SUPA}/rest/v1/assets?select=id,asset_number,make,model,year,status,team_id,teams(name,import_ref)&deleted_at=is.null&order=asset_number`, { headers: HDRS });
+    const data = await r.json();
+    allAssets = Array.isArray(data) ? data : [];
+    document.getElementById('statusDot').style.background = 'var(--green)';
+    renderAssetList();
+  } catch(e) {
+    document.getElementById('assetPanel').innerHTML = '<div class="loading" style="color:var(--red)">Failed to load assets</div>';
+  }
+}
+
+function getTeamRef(a) { return a.teams?.import_ref || 'unknown'; }
+function getTeamName(a) { return a.teams?.name || 'Unknown'; }
+function assetDesc(a) { return [a.year, a.make, a.model].filter(Boolean).join(' ') || '—'; }
+
+function getFilteredAssets() {
+  return allAssets.filter(a => {
+    const matchTeam = teamFilter === 'all' || getTeamRef(a) === teamFilter;
+    const q = searchQuery.toLowerCase();
+    const matchSearch = !q || a.asset_number?.toLowerCase().includes(q) ||
+      (a.make||'').toLowerCase().includes(q) || (a.model||'').toLowerCase().includes(q);
+    return matchTeam && matchSearch;
+  });
+}
+
+function setTeamFilter(team) {
+  teamFilter = team;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b.dataset.team === team));
+  renderAssetList();
+}
+
+function filterAssets() {
+  searchQuery = document.getElementById('searchBox').value;
+  renderAssetList();
+}
+
+function renderAssetList() {
+  const filtered = getFilteredAssets();
+  document.getElementById('countBadge').textContent = `${filtered.length} assets · ${selected.size} selected`;
+
+  // Group by team
+  const groups = {};
+  filtered.forEach(a => {
+    const key = getTeamRef(a);
+    const name = getTeamName(a);
+    if (!groups[key]) groups[key] = { name, assets: [] };
+    groups[key].assets.push(a);
+  });
+
+  let html = '';
+  Object.entries(groups).sort((a,b) => a[1].name.localeCompare(b[1].name)).forEach(([key, g]) => {
+    html += `<div class="team-group">
+      <div class="team-header" onclick="toggleTeam('${key}')">
+        <span>${g.name.toUpperCase()}</span>
+        <span class="team-count">${g.assets.length}</span>
+      </div>
+      <div id="tg-${key}">`;
+    g.assets.forEach(a => {
+      const sel = selected.has(a.id);
+      html += `<div class="asset-row ${sel?'selected':''}" onclick="toggleAsset('${a.id}')">
+        <div class="asset-cb"><svg class="asset-cb-check" viewBox="0 0 8 8" fill="none"><path d="M1 4l2.5 2.5L7 1.5" stroke="#000" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+        <span class="asset-num">${a.asset_number}</span>
+        <span class="asset-desc">${assetDesc(a)}</span>
+        <div class="asset-status ${a.status==='in_service'?'status-in':'status-out'}"></div>
+      </div>`;
+    });
+    html += '</div></div>';
+  });
+
+  document.getElementById('assetPanel').innerHTML = html || '<div class="loading">No assets match</div>';
+  updateButtons();
+}
+
+function toggleTeam(key) {
+  const el = document.getElementById('tg-' + key);
+  el.style.display = el.style.display === 'none' ? '' : 'none';
+}
+
+function toggleAsset(id) {
+  if (selected.has(id)) { selected.delete(id); } else { selected.add(id); }
+  renderAssetList();
+  renderQRs();
+}
+
+function selectAll() {
+  getFilteredAssets().forEach(a => selected.add(a.id));
+  renderAssetList();
+  renderQRs();
+}
+
+function clearSelection() {
+  selected.clear();
+  renderAssetList();
+  renderQRs();
+}
+
+function updateButtons() {
+  const n = selected.size;
+  document.getElementById('printBtn').disabled = n === 0;
+  document.getElementById('zipBtn').disabled = n === 0;
+  document.getElementById('countBadge').textContent = `${getFilteredAssets().length} assets · ${n} selected`;
+}
+
+// QR Generation
+function getUrl(assetNumber) {
+  return document.getElementById('baseUrl').value + encodeURIComponent(assetNumber);
+}
+
+function generateQR(container, url, size=120) {
+  container.innerHTML = '';
+  new QRCode(container, {
+    text: url,
+    width: size,
+    height: size,
+    colorDark: '#000000',
+    colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.H
+  });
+}
+
+function renderQRs() {
+  const panel = document.getElementById('previewPanel');
+  if (selected.size === 0) {
+    panel.innerHTML = `<div class="preview-empty">
+      <div class="preview-empty-icon">⬛</div>
+      <p>Select assets to generate QR codes</p>
+    </div>`;
+    return;
+  }
+
+  const selectedAssets = allAssets.filter(a => selected.has(a.id));
+  panel.innerHTML = `<div class="preview-header">
+    <span class="preview-title">${selected.size} QR code${selected.size!==1?'s':''} generated</span>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-outline" onclick="printSelected()">Print Sheet</button>
+      <button class="btn btn-primary" onclick="downloadZip()">↓ Download ZIP</button>
+    </div>
+  </div>
+  <div class="qr-grid" id="qrGrid"></div>`;
+
+  const grid = document.getElementById('qrGrid');
+  selectedAssets.forEach(a => {
+    const url = getUrl(a.asset_number);
+    const card = document.createElement('div');
+    card.className = 'qr-card';
+    card.id = 'card-' + a.id;
+    const wrap = document.createElement('div');
+    wrap.className = 'qr-canvas-wrap';
+    const desc = assetDesc(a);
+    card.innerHTML = `<div class="qr-canvas-wrap" id="qr-${a.id}"></div>
+      <div class="qr-label">${a.asset_number}</div>
+      ${desc !== '—' ? `<div class="qr-sublabel">${desc}</div>` : ''}
+      <button class="qr-dl-btn" onclick="downloadSingle('${a.id}','${a.asset_number.replace(/'/g,"\\'")}')">↓ Download PNG</button>`;
+    grid.appendChild(card);
+    setTimeout(() => {
+      generateQR(document.getElementById('qr-' + a.id), url, 120);
+    }, 10);
+  });
+  updateButtons();
+}
+
+function regenerateVisible() {
+  if (selected.size > 0) renderQRs();
+}
+
+// Download single PNG
+function downloadSingle(id, assetNum) {
+  const container = document.getElementById('qr-' + id);
+  const canvas = container.querySelector('canvas');
+  if (!canvas) return;
+
+  // Build labeled canvas
+  const out = document.createElement('canvas');
+  out.width = 200; out.height = 230;
+  const ctx = out.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0,0,200,230);
+  ctx.drawImage(canvas, 20, 10, 160, 160);
+  ctx.fillStyle = '#000000';
+  ctx.font = 'bold 16px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(assetNum, 100, 195);
+  ctx.font = '10px monospace';
+  ctx.fillStyle = '#888888';
+  ctx.fillText('Rexius Fleet', 100, 215);
+
+  const link = document.createElement('a');
+  link.download = `${assetNum.replace(/[^a-zA-Z0-9-]/g,'_')}_qr.png`;
+  link.href = out.toDataURL('image/png');
+  link.click();
+  toast('Downloaded ' + assetNum);
+}
+
+// Download ZIP of all selected
+async function downloadZip() {
+  const selectedAssets = allAssets.filter(a => selected.has(a.id));
+  if (!selectedAssets.length) return;
+
+  toast('Building ZIP...');
+  const zip = new JSZip();
+
+  for (const a of selectedAssets) {
+    await new Promise(resolve => {
+      const tmp = document.createElement('div');
+      tmp.style.cssText = 'position:absolute;left:-9999px;top:-9999px';
+      document.body.appendChild(tmp);
+
+      new QRCode(tmp, {
+        text: getUrl(a.asset_number),
+        width: 200, height: 200,
+        colorDark: '#000000',
+        colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.H
+      });
+
+      setTimeout(() => {
+        const qrCanvas = tmp.querySelector('canvas');
+        const out = document.createElement('canvas');
+        out.width = 240; out.height = 280;
+        const ctx = out.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0,0,240,280);
+        ctx.drawImage(qrCanvas, 20, 10, 200, 200);
+        ctx.fillStyle = '#000000';
+        ctx.font = 'bold 18px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(a.asset_number, 120, 235);
+        ctx.font = '11px monospace';
+        ctx.fillStyle = '#888888';
+        ctx.fillText('Rexius Fleet', 120, 258);
+
+        out.toBlob(blob => {
+          const fname = `${a.asset_number.replace(/[^a-zA-Z0-9-]/g,'_')}_qr.png`;
+          zip.file(fname, blob);
+          document.body.removeChild(tmp);
+          resolve();
+        });
+      }, 80);
+    });
+  }
+
+  const content = await zip.generateAsync({type:'blob'});
+  const link = document.createElement('a');
+  link.download = `rexius_qr_codes_${new Date().toISOString().slice(0,10)}.zip`;
+  link.href = URL.createObjectURL(content);
+  link.click();
+  toast(`Downloaded ${selectedAssets.length} QR codes`);
+}
+
+// Print sheet
+function printSelected() {
+  const selectedAssets = allAssets.filter(a => selected.has(a.id));
+  if (!selectedAssets.length) return;
+
+  const sheet = document.getElementById('printSheet');
+  sheet.innerHTML = '<div class="print-grid" id="printGrid"></div>';
+  const grid = document.getElementById('printGrid');
+
+  let rendered = 0;
+  selectedAssets.forEach(a => {
+    const cell = document.createElement('div');
+    cell.className = 'print-cell';
+    const qrDiv = document.createElement('div');
+    const label = document.createElement('div');
+    label.className = 'print-label';
+    label.textContent = a.asset_number;
+    const url = document.createElement('div');
+    url.className = 'print-url';
+    url.textContent = getUrl(a.asset_number);
+    cell.appendChild(qrDiv);
+    cell.appendChild(label);
+    cell.appendChild(url);
+    grid.appendChild(cell);
+
+    new QRCode(qrDiv, {
+      text: getUrl(a.asset_number),
+      width: 130, height: 130,
+      colorDark: '#000000', colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.H
+    });
+    rendered++;
+    if (rendered === selectedAssets.length) {
+      setTimeout(() => window.print(), 300);
+    }
+  });
+}
+
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+loadAssets();
+</script>
+</body>
+</html>

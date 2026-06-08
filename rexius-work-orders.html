@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rexius Fleet — Work Orders</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@300;400;500;600&display=swap');
+
+:root {
+  --ink: #0d0d0d;
+  --paper: #fafaf8;
+  --surface: #f3f2ee;
+  --border: #d8d6d0;
+  --green: #1a5c32;
+  --green-mid: #2d7d4a;
+  --green-light: #e8f5ee;
+  --red: #8b1a1a;
+  --red-light: #fdf0f0;
+  --amber: #7a4a00;
+  --amber-light: #fef8ec;
+  --orange: #7a3500;
+  --orange-light: #fff3e8;
+  --blue: #1a3c6e;
+  --blue-light: #eef3fb;
+  --gray: #6b7280;
+  --mono: 'IBM Plex Mono', monospace;
+  --display: 'Barlow Condensed', sans-serif;
+  --body: 'Barlow', sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body { font-family: var(--body); background: var(--surface); color: var(--ink); -webkit-font-smoothing: antialiased; }
+
+/* ── LOGIN ── */
+#loginScreen { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--ink); background-image: repeating-linear-gradient(0deg,transparent,transparent 39px,rgba(255,255,255,.03) 39px,rgba(255,255,255,.03) 40px),repeating-linear-gradient(90deg,transparent,transparent 39px,rgba(255,255,255,.03) 39px,rgba(255,255,255,.03) 40px); }
+.login-box { background: var(--paper); border: 1px solid #333; width: 100%; max-width: 400px; padding: 36px; }
+.login-wordmark { font-family: var(--display); font-size: 11px; font-weight: 600; letter-spacing: .25em; text-transform: uppercase; color: var(--green); margin-bottom: 4px; }
+.login-title { font-family: var(--display); font-size: 30px; font-weight: 700; color: var(--ink); margin-bottom: 4px; }
+.login-sub { font-size: 13px; color: #666; margin-bottom: 24px; }
+.login-label { display: block; font-family: var(--mono); font-size: 11px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: #555; margin-bottom: 5px; }
+.login-input { width: 100%; font-family: var(--body); font-size: 15px; padding: 10px 13px; border: 1px solid var(--border); background: var(--paper); color: var(--ink); margin-bottom: 12px; outline: none; transition: border-color .15s; }
+.login-input:focus { border-color: var(--green); }
+.login-btn { width: 100%; font-family: var(--display); font-size: 15px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 12px; border: none; background: var(--ink); color: var(--paper); cursor: pointer; margin-top: 4px; transition: background .12s; }
+.login-btn:hover { background: var(--green); }
+.login-err { font-size: 12px; color: var(--red); margin-top: 6px; display: none; }
+.login-err.show { display: block; }
+
+/* ── APP ── */
+#app { display: none; flex-direction: column; min-height: 100vh; }
+#app.active { display: flex; }
+
+.topbar { background: var(--ink); color: var(--paper); padding: 0 20px; height: 50px; display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid var(--green); flex-shrink: 0; position: sticky; top: 0; z-index: 100; }
+.topbar-left { display: flex; align-items: center; gap: 16px; }
+.topbar-brand { font-family: var(--display); font-size: 14px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--green); }
+.topbar-title { font-family: var(--display); font-size: 13px; font-weight: 500; letter-spacing: .06em; color: rgba(255,255,255,.5); text-transform: uppercase; }
+.topbar-right { display: flex; align-items: center; gap: 12px; }
+.topbar-user { font-family: var(--mono); font-size: 11px; color: rgba(255,255,255,.4); }
+.topbar-user span { color: var(--green); }
+.logout-btn { font-family: var(--mono); font-size: 11px; color: rgba(255,255,255,.35); background: none; border: 1px solid rgba(255,255,255,.12); padding: 4px 9px; cursor: pointer; transition: all .12s; }
+.logout-btn:hover { border-color: var(--green); color: var(--green); }
+
+/* ── TAB BAR ── */
+.tab-bar { background: var(--paper); border-bottom: 1px solid var(--border); padding: 0 20px; display: flex; gap: 0; align-items: flex-end; }
+.tab { font-family: var(--display); font-size: 13px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; padding: 12px 18px; cursor: pointer; color: var(--gray); border-bottom: 2px solid transparent; transition: all .12s; white-space: nowrap; }
+.tab:hover { color: var(--ink); }
+.tab.active { color: var(--green); border-bottom-color: var(--green); }
+.tab-badge { display: inline-block; font-family: var(--mono); font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 10px; background: var(--surface); color: var(--gray); margin-left: 5px; }
+.tab.active .tab-badge { background: var(--green-light); color: var(--green); }
+
+/* ── TOOLBAR ── */
+.toolbar { padding: 12px 20px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: var(--paper); border-bottom: 1px solid var(--border); }
+.tb-search { font-family: var(--body); font-size: 13px; padding: 7px 11px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); outline: none; width: 220px; }
+.tb-search:focus { border-color: var(--green); background: var(--paper); }
+.tb-select { font-family: var(--body); font-size: 13px; padding: 7px 11px; border: 1px solid var(--border); background: var(--paper); color: var(--ink); outline: none; cursor: pointer; }
+.tb-select:focus { border-color: var(--green); }
+.tb-sep { width: 1px; height: 22px; background: var(--border); }
+.tb-btn { font-family: var(--mono); font-size: 11px; font-weight: 500; padding: 7px 14px; border: 1px solid var(--border); background: var(--paper); color: #444; cursor: pointer; transition: all .12s; white-space: nowrap; letter-spacing: .02em; }
+.tb-btn:hover { border-color: var(--green); color: var(--green); }
+.tb-btn.primary { background: var(--green); border-color: var(--green); color: #fff; }
+.tb-btn.primary:hover { opacity: .88; }
+
+/* ── CONTENT ── */
+.content { flex: 1; padding: 20px; overflow-y: auto; }
+
+/* ── STATS ── */
+.stat-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 18px; }
+.stat { background: var(--paper); border: 1px solid var(--border); padding: 14px 16px; position: relative; }
+.stat::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--border); }
+.stat.urgent::before { background: var(--red); }
+.stat.high::before { background: #ea580c; }
+.stat.normal::before { background: var(--amber); }
+.stat.low::before { background: var(--blue); }
+.stat.done::before { background: var(--green); }
+.stat-n { font-family: var(--display); font-size: 32px; font-weight: 700; line-height: 1; }
+.stat-l { font-family: var(--mono); font-size: 10px; font-weight: 500; letter-spacing: .1em; text-transform: uppercase; color: var(--gray); margin-top: 3px; }
+
+/* ── KANBAN ── */
+.kanban { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.lane { background: var(--surface); border: 1px solid var(--border); }
+.lane-header { padding: 10px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; background: var(--paper); }
+.lane-title { font-family: var(--display); font-size: 13px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink); }
+.lane-count { font-family: var(--mono); font-size: 11px; color: var(--gray); }
+.lane-body { padding: 10px; display: flex; flex-direction: column; gap: 8px; min-height: 120px; }
+
+/* ── WO CARD ── */
+.wo-card { background: var(--paper); border: 1px solid var(--border); border-left: 3px solid var(--border); padding: 11px 13px; cursor: pointer; transition: all .12s; position: relative; }
+.wo-card:hover { border-color: var(--green); box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+.wo-card.urgent { border-left-color: var(--red); }
+.wo-card.high { border-left-color: #ea580c; }
+.wo-card.normal { border-left-color: var(--amber); }
+.wo-card.low { border-left-color: var(--blue); }
+.wo-asset { font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--ink); }
+.wo-desc { font-size: 13px; color: #333; margin-top: 3px; line-height: 1.3; }
+.wo-meta { display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap; align-items: center; }
+.wo-tag { font-family: var(--mono); font-size: 10px; font-weight: 500; padding: 2px 6px; letter-spacing: .03em; }
+.tag-team { background: var(--blue-light); color: var(--blue); }
+.tag-mech { background: var(--green-light); color: var(--green); }
+.tag-unassigned { background: var(--surface); color: var(--gray); border: 1px solid var(--border); }
+.tag-cost { background: var(--amber-light); color: var(--amber); }
+.wo-date { font-family: var(--mono); font-size: 10px; color: var(--gray); margin-left: auto; }
+
+/* ── TABLE VIEW ── */
+.wo-table { width: 100%; border-collapse: collapse; background: var(--paper); border: 1px solid var(--border); font-size: 13px; }
+.wo-table th { font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--gray); background: var(--surface); padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; cursor: pointer; user-select: none; }
+.wo-table th:hover { color: var(--ink); }
+.wo-table td { padding: 10px 12px; border-bottom: 1px solid var(--surface); vertical-align: middle; }
+.wo-table tr:last-child td { border-bottom: none; }
+.wo-table tr:hover td { background: var(--surface); }
+.wo-table tr { cursor: pointer; }
+
+/* ── PRIORITY PILLS ── */
+.pri { font-family: var(--mono); font-size: 10px; font-weight: 600; padding: 3px 8px; letter-spacing: .04em; text-transform: uppercase; }
+.pri-urgent { background: var(--red-light); color: var(--red); }
+.pri-high { background: var(--orange-light); color: var(--orange); }
+.pri-normal { background: var(--amber-light); color: var(--amber); }
+.pri-low { background: var(--blue-light); color: var(--blue); }
+.pri-null { background: var(--surface); color: var(--gray); border: 1px solid var(--border); }
+
+.st { font-family: var(--mono); font-size: 10px; font-weight: 600; padding: 3px 8px; letter-spacing: .04em; text-transform: uppercase; }
+.st-open { background: var(--red-light); color: var(--red); }
+.st-in_progress { background: var(--amber-light); color: var(--amber); }
+.st-completed { background: var(--green-light); color: var(--green); }
+.st-cancelled { background: var(--surface); color: var(--gray); }
+
+/* ── MODAL ── */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 200; display: none; align-items: center; justify-content: center; }
+.modal-overlay.open { display: flex; }
+.modal { background: var(--paper); width: 100%; max-width: 580px; max-height: 90vh; overflow-y: auto; border: 1px solid var(--border); }
+.modal-header { padding: 18px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; justify-content: space-between; background: var(--ink); color: var(--paper); }
+.modal-title { font-family: var(--display); font-size: 18px; font-weight: 700; letter-spacing: .02em; }
+.modal-asset { font-family: var(--mono); font-size: 12px; color: var(--green); margin-top: 2px; }
+.modal-close { font-size: 20px; background: none; border: none; color: rgba(255,255,255,.4); cursor: pointer; padding: 0 4px; line-height: 1; }
+.modal-close:hover { color: var(--paper); }
+.modal-body { padding: 20px; }
+.modal-section { margin-bottom: 16px; }
+.modal-label { font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--gray); margin-bottom: 5px; }
+.modal-value { font-size: 14px; color: var(--ink); line-height: 1.5; }
+.modal-notes { font-size: 13px; color: #444; line-height: 1.6; background: var(--surface); padding: 10px 12px; border-left: 3px solid var(--green); white-space: pre-wrap; }
+.modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.modal-footer { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; background: var(--surface); }
+.m-btn { font-family: var(--mono); font-size: 11px; font-weight: 500; padding: 8px 16px; border: 1px solid var(--border); background: var(--paper); color: #444; cursor: pointer; transition: all .12s; }
+.m-btn:hover { border-color: var(--green); color: var(--green); }
+.m-btn.primary { background: var(--green); border-color: var(--green); color: #fff; }
+.m-btn.danger { border-color: var(--red); color: var(--red); }
+.m-btn.danger:hover { background: var(--red); color: #fff; }
+
+/* ── NEW WO FORM ── */
+.form-row { margin-bottom: 14px; }
+.form-label { display: block; font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--gray); margin-bottom: 5px; }
+.form-input, .form-select, .form-textarea { width: 100%; font-family: var(--body); font-size: 14px; padding: 9px 11px; border: 1px solid var(--border); background: var(--paper); color: var(--ink); outline: none; transition: border-color .15s; }
+.form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--green); }
+.form-textarea { resize: vertical; min-height: 80px; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+/* ── EMPTY ── */
+.empty { text-align: center; padding: 40px 20px; color: var(--gray); }
+.empty-icon { font-size: 32px; opacity: .3; margin-bottom: 8px; }
+.empty p { font-size: 13px; font-family: var(--mono); }
+
+/* ── TOAST ── */
+.toast { position: fixed; bottom: 20px; right: 20px; background: var(--ink); color: var(--paper); font-family: var(--mono); font-size: 12px; padding: 10px 16px; border-left: 3px solid var(--green); opacity: 0; transform: translateY(6px); transition: all .2s; z-index: 999; pointer-events: none; }
+.toast.show { opacity: 1; transform: none; }
+
+/* ── LOADING ── */
+.spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--green); border-radius: 50%; animation: spin .6s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="login-wordmark">Rexius Forest By-Products</div>
+    <div class="login-title">Work Orders</div>
+    <div class="login-sub">Shop planning — mechanics &amp; managers</div>
+    <div style="height:1px;background:var(--border);margin-bottom:20px"></div>
+    <label class="login-label">Your name</label>
+    <input class="login-input" id="loginName" placeholder="First Last" autocomplete="name">
+    <label class="login-label">Password</label>
+    <input class="login-input" id="loginPass" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="login-btn" onclick="doLogin()">Enter Shop</button>
+    <div class="login-err" id="loginErr">Incorrect password or name required.</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="topbar-brand">Rexius Fleet</div>
+      <div class="topbar-title">Work Orders</div>
+    </div>
+    <div class="topbar-right">
+      <div class="topbar-user">Signed in as <span id="topUser">—</span></div>
+      <button class="logout-btn" onclick="doLogout()">Sign out</button>
+    </div>
+  </div>
+
+  <!-- Tab bar -->
+  <div class="tab-bar">
+    <div class="tab active" id="tab-board" onclick="switchTab('board')">Board <span class="tab-badge" id="badge-board">0</span></div>
+    <div class="tab" id="tab-list" onclick="switchTab('list')">All Work Orders <span class="tab-badge" id="badge-list">0</span></div>
+    <div class="tab" id="tab-week" onclick="switchTab('week')">This Week <span class="tab-badge" id="badge-week">0</span></div>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <input class="tb-search" id="searchBox" placeholder="Search asset, description..." oninput="applyFilter()">
+    <select class="tb-select" id="filterPri" onchange="applyFilter()">
+      <option value="all">All priorities</option>
+      <option value="urgent">Urgent</option>
+      <option value="high">High</option>
+      <option value="normal">Normal</option>
+      <option value="low">Low</option>
+    </select>
+    <select class="tb-select" id="filterTeam" onchange="applyFilter()">
+      <option value="all">All teams</option>
+    </select>
+    <select class="tb-select" id="filterMech" onchange="applyFilter()">
+      <option value="all">All mechanics</option>
+      <option value="unassigned">Unassigned</option>
+    </select>
+    <div class="tb-sep"></div>
+    <button class="tb-btn primary" onclick="openNewWO()">+ New Work Order</button>
+  </div>
+
+  <!-- Content -->
+  <div class="content" id="content">
+    <div class="empty"><div class="spinner"></div></div>
+  </div>
+</div>
+
+<!-- WO DETAIL MODAL -->
+<div class="modal-overlay" id="detailModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="detailTitle">—</div>
+        <div class="modal-asset" id="detailAsset">—</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('detailModal')">×</button>
+    </div>
+    <div class="modal-body" id="detailBody"></div>
+    <div class="modal-footer">
+      <button class="m-btn danger" id="detailCancelBtn" onclick="cancelWO()">Cancel WO</button>
+      <button class="m-btn" onclick="closeModal('detailModal')">Close</button>
+      <button class="m-btn primary" id="detailProgressBtn" onclick="advanceStatus()">Mark In Progress</button>
+    </div>
+  </div>
+</div>
+
+<!-- NEW WO MODAL -->
+<div class="modal-overlay" id="newWOModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div><div class="modal-title">New Work Order</div></div>
+      <button class="modal-close" onclick="closeModal('newWOModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <label class="form-label">Asset *</label>
+        <div style="position:relative">
+          <input class="form-input" id="woAssetSearch" placeholder="Search asset number, make, model..." autocomplete="off" oninput="searchAssets(this.value)">
+          <div id="assetDropdown" style="position:absolute;top:100%;left:0;right:0;background:var(--paper);border:1px solid var(--border);max-height:200px;overflow-y:auto;z-index:999;display:none"></div>
+        </div>
+        <input type="hidden" id="woAssetId">
+      </div>
+      <div class="form-row">
+        <label class="form-label">Description *</label>
+        <input class="form-input" id="woDesc" placeholder="e.g. Brake inspection + rotor replacement">
+      </div>
+      <div class="form-grid">
+        <div class="form-row">
+          <label class="form-label">Priority</label>
+          <select class="form-select" id="woPriority">
+            <option value="normal">Normal</option>
+            <option value="low">Low</option>
+            <option value="high">High</option>
+            <option value="urgent">Urgent</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label class="form-label">Assign To</label>
+          <select class="form-select" id="woMechanic">
+            <option value="">Unassigned</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-grid">
+        <div class="form-row">
+          <label class="form-label">Date Opened</label>
+          <input class="form-input" type="date" id="woDate">
+        </div>
+        <div class="form-row">
+          <label class="form-label">Est. Parts Cost ($)</label>
+          <input class="form-input" type="number" id="woCost" placeholder="0.00">
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Notes</label>
+        <textarea class="form-textarea" id="woNotes" placeholder="Parts needed, vendor, ETA, special instructions..."></textarea>
+      </div>
+      <div id="woError" style="font-size:12px;color:var(--red);margin-top:4px;display:none"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="m-btn" onclick="closeModal('newWOModal')">Cancel</button>
+      <button class="m-btn primary" onclick="saveNewWO()">Create Work Order</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPA = 'https://toduddkyttuablausist.supabase.co';
+const KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRvZHVkZGt5dHR1YWJsYXVzaXN0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NjY5MTEsImV4cCI6MjA5NjI0MjkxMX0.ZdtMIuc9kEo7-x0Lr-y2--F1aqkurbLJ0YxeQD2ggDQ';
+const H = { apikey: KEY, Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' };
+const PASSWORD = 'rexius2024';
+
+let currentUser = null;
+let currentTab  = 'board';
+let allWOs      = [];
+let allAssets   = [];
+let allPeople   = [];
+let selectedWO  = null;
+
+// ── LOGIN ──────────────────────────────────────────────────────────
+function doLogin() {
+  const name = document.getElementById('loginName').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  const err  = document.getElementById('loginErr');
+  if (!name) { err.textContent = 'Please enter your name.'; err.classList.add('show'); return; }
+  if (pass !== PASSWORD) { err.textContent = 'Incorrect password.'; err.classList.add('show'); return; }
+  currentUser = name;
+  err.classList.remove('show');
+  rpc('log_access', { p_tool_name: 'work-orders', p_user_name: name, p_action: 'login' });
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('app').classList.add('active');
+  document.getElementById('topUser').textContent = name;
+  document.getElementById('woDate').value = new Date().toISOString().slice(0,10);
+  loadData();
+}
+
+function doLogout() {
+  rpc('log_access', { p_tool_name: 'work-orders', p_user_name: currentUser, p_action: 'logout' });
+  location.reload();
+}
+
+// ── DATA ───────────────────────────────────────────────────────────
+async function rpc(fn, body) {
+  const r = await fetch(`${SUPA}/rest/v1/rpc/${fn}`, { method: 'POST', headers: H, body: JSON.stringify(body) });
+  return r.json();
+}
+
+async function loadData() {
+  showSpinner();
+  try {
+    const data = await rpc('get_work_order_portal_data', {});
+    allWOs    = data.work_orders   || [];
+    allPeople = data.mechanics     || [];
+    allAssets = data.assets        || [];
+    populateFilters();
+    render();
+  } catch(e) {
+    console.error(e);
+    document.getElementById('content').innerHTML = '<div class="empty"><div class="empty-icon">⚠</div><p>Failed to load data</p></div>';
+  }
+}
+
+function populateFilters() {
+  // Teams
+  const teams = [...new Set(allWOs.map(w => w.team).filter(Boolean))].sort();
+  const ts = document.getElementById('filterTeam');
+  ts.innerHTML = '<option value="all">All teams</option>' + teams.map(t => `<option value="${t}">${t}</option>`).join('');
+
+  // Mechanics
+  const ms = document.getElementById('filterMech');
+  ms.innerHTML = '<option value="all">All mechanics</option><option value="unassigned">Unassigned</option>' +
+    allPeople.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+
+  // WO mechanic dropdown
+  const wm = document.getElementById('woMechanic');
+  wm.innerHTML = '<option value="">Unassigned</option>' + allPeople.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+}
+
+function getFiltered() {
+  const q     = document.getElementById('searchBox').value.toLowerCase();
+  const pri   = document.getElementById('filterPri').value;
+  const team  = document.getElementById('filterTeam').value;
+  const mech  = document.getElementById('filterMech').value;
+  return allWOs.filter(w => {
+    if (q && !((w.asset_number||'').toLowerCase().includes(q) || (w.description||'').toLowerCase().includes(q) || (w.mechanic||'').toLowerCase().includes(q))) return false;
+    if (pri  !== 'all' && w.priority !== pri) return false;
+    if (team !== 'all' && w.team !== team) return false;
+    if (mech === 'unassigned' && w.mechanic_id) return false;
+    if (mech !== 'all' && mech !== 'unassigned' && w.mechanic_id !== mech) return false;
+    return true;
+  });
+}
+
+function applyFilter() { render(); }
+
+// ── RENDER ─────────────────────────────────────────────────────────
+function render() {
+  const wos = getFiltered();
+  const open = wos.filter(w => w.status === 'open');
+  const inprog = wos.filter(w => w.status === 'in_progress');
+  const done = allWOs.filter(w => w.status === 'completed');
+  const thisWeek = wos.filter(w => {
+    const d = new Date(w.date_opened);
+    const now = new Date();
+    const startOfWeek = new Date(now); startOfWeek.setDate(now.getDate() - now.getDay());
+    return d >= startOfWeek;
+  });
+
+  // Badges
+  document.getElementById('badge-board').textContent = open.length + inprog.length;
+  document.getElementById('badge-list').textContent  = wos.length;
+  document.getElementById('badge-week').textContent  = thisWeek.length;
+
+  // Stats
+  const urgent = wos.filter(w => w.priority === 'urgent' && w.status !== 'completed').length;
+  const high   = wos.filter(w => w.priority === 'high'   && w.status !== 'completed').length;
+  const unass  = wos.filter(w => !w.mechanic_id           && w.status !== 'completed').length;
+  const statsHtml = `<div class="stat-row">
+    <div class="stat urgent"><div class="stat-n" style="color:var(--red)">${urgent}</div><div class="stat-l">Urgent</div></div>
+    <div class="stat high"><div class="stat-n" style="color:#ea580c">${high}</div><div class="stat-l">High Priority</div></div>
+    <div class="stat normal"><div class="stat-n" style="color:var(--amber)">${open.length}</div><div class="stat-l">Open</div></div>
+    <div class="stat low"><div class="stat-n" style="color:var(--amber)">${inprog.length}</div><div class="stat-l">In Progress</div></div>
+    <div class="stat done"><div class="stat-n" style="color:var(--green)">${unass}</div><div class="stat-l">Unassigned</div></div>
+  </div>`;
+
+  if (currentTab === 'board') renderBoard(statsHtml, open, inprog, done);
+  else if (currentTab === 'list') renderTable(statsHtml, wos);
+  else if (currentTab === 'week') renderTable(statsHtml, thisWeek, true);
+}
+
+function woCard(w) {
+  const pri = w.priority || 'normal';
+  const mech = w.mechanic ? `<span class="wo-tag tag-mech">${w.mechanic}</span>` : `<span class="wo-tag tag-unassigned">Unassigned</span>`;
+  const cost = w.total_parts_cost ? `<span class="wo-tag tag-cost">$${parseFloat(w.total_parts_cost).toLocaleString()}</span>` : '';
+  return `<div class="wo-card ${pri}" onclick="openDetail('${w.id}')">
+    <div class="wo-asset">${w.asset_number || '—'}</div>
+    <div class="wo-desc">${w.description || '—'}</div>
+    <div class="wo-meta">
+      <span class="wo-tag tag-team">${w.team || '—'}</span>
+      ${mech}${cost}
+      <span class="wo-date">${fmtDate(w.date_opened)}</span>
+    </div>
+  </div>`;
+}
+
+function renderBoard(stats, open, inprog, done) {
+  document.getElementById('content').innerHTML = stats + `
+    <div class="kanban">
+      <div class="lane">
+        <div class="lane-header"><span class="lane-title">Open</span><span class="lane-count">${open.length}</span></div>
+        <div class="lane-body">${open.length ? open.map(woCard).join('') : '<div class="empty"><div class="empty-icon">✓</div><p>No open work orders</p></div>'}</div>
+      </div>
+      <div class="lane">
+        <div class="lane-header"><span class="lane-title">In Progress</span><span class="lane-count">${inprog.length}</span></div>
+        <div class="lane-body">${inprog.length ? inprog.map(woCard).join('') : '<div class="empty"><div class="empty-icon">🔧</div><p>Nothing in progress</p></div>'}</div>
+      </div>
+      <div class="lane">
+        <div class="lane-header"><span class="lane-title">Completed</span><span class="lane-count">${done.length}</span></div>
+        <div class="lane-body">${done.length ? done.slice(0,10).map(woCard).join('') : '<div class="empty"><div class="empty-icon">📋</div><p>None yet</p></div>'}</div>
+      </div>
+    </div>`;
+}
+
+function renderTable(stats, wos, weekMode=false) {
+  const rows = wos.length ? wos.map(w => {
+    const pri = w.priority ? `<span class="pri pri-${w.priority}">${w.priority}</span>` : `<span class="pri pri-null">—</span>`;
+    const st  = `<span class="st st-${w.status}">${w.status.replace('_',' ')}</span>`;
+    const mech = w.mechanic || '<span style="color:var(--gray);font-size:11px">Unassigned</span>';
+    const cost = w.total_parts_cost ? `$${parseFloat(w.total_parts_cost).toLocaleString()}` : '—';
+    return `<tr onclick="openDetail('${w.id}')">
+      <td><span style="font-family:var(--mono);font-size:12px;font-weight:600">${w.asset_number||'—'}</span></td>
+      <td>${w.description||'—'}</td>
+      <td><span style="font-size:11px;color:var(--gray)">${w.team||'—'}</span></td>
+      <td>${pri}</td>
+      <td>${st}</td>
+      <td style="font-size:12px">${mech}</td>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--gray)">${cost}</td>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--gray)">${fmtDate(w.date_opened)}</td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="8"><div class="empty"><div class="empty-icon">📋</div><p>No work orders</p></div></td></tr>`;
+
+  document.getElementById('content').innerHTML = stats + `
+    <table class="wo-table">
+      <thead><tr><th>Asset</th><th>Description</th><th>Team</th><th>Priority</th><th>Status</th><th>Mechanic</th><th>Cost</th><th>Date</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+// ── DETAIL MODAL ───────────────────────────────────────────────────
+function openDetail(id) {
+  selectedWO = allWOs.find(w => w.id === id);
+  if (!selectedWO) return;
+  const w = selectedWO;
+
+  document.getElementById('detailTitle').textContent = w.description || '—';
+  document.getElementById('detailAsset').textContent = [w.asset_number, w.year, w.make, w.model].filter(Boolean).join(' · ');
+
+  const cost = w.total_parts_cost ? `$${parseFloat(w.total_parts_cost).toLocaleString()}` : '—';
+  document.getElementById('detailBody').innerHTML = `
+    <div class="modal-grid">
+      <div class="modal-section"><div class="modal-label">Status</div><div class="modal-value"><span class="st st-${w.status}">${w.status.replace('_',' ')}</span></div></div>
+      <div class="modal-section"><div class="modal-label">Priority</div><div class="modal-value">${w.priority ? `<span class="pri pri-${w.priority}">${w.priority}</span>` : '—'}</div></div>
+      <div class="modal-section"><div class="modal-label">Team</div><div class="modal-value">${w.team || '—'}</div></div>
+      <div class="modal-section"><div class="modal-label">Assigned To</div><div class="modal-value">${w.mechanic || 'Unassigned'}</div></div>
+      <div class="modal-section"><div class="modal-label">Date Opened</div><div class="modal-value">${fmtDate(w.date_opened)}</div></div>
+      <div class="modal-section"><div class="modal-label">Parts Cost Est.</div><div class="modal-value">${cost}</div></div>
+    </div>
+    ${w.notes ? `<div class="modal-section"><div class="modal-label">Notes</div><div class="modal-notes">${w.notes}</div></div>` : ''}`;
+
+  // Progress button label
+  const pb = document.getElementById('detailProgressBtn');
+  if (w.status === 'open')        { pb.textContent = 'Mark In Progress'; pb.style.display = ''; }
+  else if (w.status === 'in_progress') { pb.textContent = 'Mark Completed'; pb.style.display = ''; }
+  else { pb.style.display = 'none'; }
+
+  document.getElementById('detailModal').classList.add('open');
+  rpc('log_access', { p_tool_name: 'work-orders', p_user_name: currentUser, p_action: 'view_wo', p_metadata: { wo_id: id, asset: w.asset_number } });
+}
+
+async function advanceStatus() {
+  if (!selectedWO) return;
+  const nextStatus = selectedWO.status === 'open' ? 'in_progress' : 'completed';
+  await rpc('update_work_order_status', { p_wo_id: selectedWO.id, p_status: nextStatus, p_user: currentUser });
+  closeModal('detailModal');
+  showToast(`Work order marked ${nextStatus.replace('_',' ')}`);
+  rpc('log_access', { p_tool_name: 'work-orders', p_user_name: currentUser, p_action: 'status_change', p_metadata: { wo_id: selectedWO.id, status: nextStatus } });
+  loadData();
+}
+
+async function cancelWO() {
+  if (!selectedWO || !confirm('Cancel this work order?')) return;
+  await rpc('update_work_order_status', { p_wo_id: selectedWO.id, p_status: 'cancelled', p_user: currentUser });
+  closeModal('detailModal');
+  showToast('Work order cancelled');
+  loadData();
+}
+
+// ── NEW WO ─────────────────────────────────────────────────────────
+function openNewWO() {
+  document.getElementById('woAssetSearch').value = '';
+  document.getElementById('woAssetId').value = '';
+  document.getElementById('woDesc').value = '';
+  document.getElementById('woNotes').value = '';
+  document.getElementById('woCost').value = '';
+  document.getElementById('woPriority').value = 'normal';
+  document.getElementById('woMechanic').value = '';
+  document.getElementById('woDate').value = new Date().toISOString().slice(0,10);
+  document.getElementById('woError').style.display = 'none';
+  document.getElementById('newWOModal').classList.add('open');
+}
+
+function searchAssets(q) {
+  const drop = document.getElementById('assetDropdown');
+  if (!q.trim()) { drop.style.display = 'none'; return; }
+  const qn = q.toLowerCase().replace(/[\s\-_]/g,'');
+  const matches = allAssets.filter(a => {
+    const an = (a.asset_number||'').toLowerCase().replace(/[\s\-_]/g,'');
+    const desc = [a.make,a.model,a.year].filter(Boolean).join(' ').toLowerCase();
+    return an.includes(qn) || desc.includes(q.toLowerCase());
+  }).slice(0, 8);
+  if (!matches.length) { drop.style.display = 'none'; return; }
+  drop.innerHTML = matches.map(a => {
+    const desc = [a.year, a.make, a.model].filter(Boolean).join(' ');
+    return `<div onclick="selectAsset('${a.id}','${a.asset_number.replace(/'/g,"\\'")}','${desc.replace(/'/g,"\\'")}') "
+      style="padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--surface);font-size:13px"
+      onmouseover="this.style.background='var(--green-light)'" onmouseout="this.style.background=''">
+      <span style="font-family:var(--mono);font-weight:600">${a.asset_number}</span>
+      <span style="font-size:11px;color:var(--gray);margin-left:8px">${desc}</span>
+    </div>`;
+  }).join('');
+  drop.style.display = 'block';
+}
+
+function selectAsset(id, num, desc) {
+  document.getElementById('woAssetId').value = id;
+  document.getElementById('woAssetSearch').value = num + (desc ? ' — ' + desc : '');
+  document.getElementById('assetDropdown').style.display = 'none';
+}
+
+async function saveNewWO() {
+  const assetId = document.getElementById('woAssetId').value;
+  const desc    = document.getElementById('woDesc').value.trim();
+  const errEl   = document.getElementById('woError');
+
+  if (!assetId || !desc) {
+    errEl.textContent = 'Asset and description are required.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const cost    = document.getElementById('woCost').value;
+  const mechId  = document.getElementById('woMechanic').value;
+  const result  = await rpc('create_work_order', {
+    p_asset_id:       assetId,
+    p_description:    desc,
+    p_priority:       document.getElementById('woPriority').value,
+    p_mechanic_id:    mechId || null,
+    p_date_opened:    document.getElementById('woDate').value,
+    p_notes:          document.getElementById('woNotes').value || null,
+    p_parts_cost:     cost ? parseFloat(cost) : null,
+    p_created_by:     currentUser,
+  });
+
+  if (result?.success) {
+    closeModal('newWOModal');
+    showToast('Work order created');
+    rpc('log_access', { p_tool_name: 'work-orders', p_user_name: currentUser, p_action: 'create_wo', p_metadata: { asset_id: assetId } });
+    loadData();
+  } else {
+    errEl.textContent = 'Failed to create work order: ' + JSON.stringify(result);
+    errEl.style.display = 'block';
+  }
+}
+
+// ── HELPERS ────────────────────────────────────────────────────────
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  render();
+}
+
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+function fmtDate(d) {
+  if (!d) return '—';
+  return new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function showSpinner() {
+  document.getElementById('content').innerHTML = '<div class="empty"><div class="spinner"></div></div>';
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('#woAssetSearch') && !e.target.closest('#assetDropdown')) {
+    document.getElementById('assetDropdown').style.display = 'none';
+  }
+});
+</script>
+</body>
+</html>
