@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -108,6 +109,7 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
 .wo-meta { display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap; align-items: center; }
 .wo-tag { font-family: var(--mono); font-size: 10px; font-weight: 500; padding: 2px 6px; letter-spacing: .03em; }
 .tag-team { background: var(--blue-light); color: var(--blue); }
+.tag-shop { background: var(--green-light); color: var(--green-mid); }
 .tag-mech { background: var(--green-light); color: var(--green); }
 .tag-unassigned { background: var(--surface); color: var(--gray); border: 1px solid var(--border); }
 .tag-cost { background: var(--amber-light); color: var(--amber); }
@@ -219,8 +221,11 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
       <option value="normal">Normal</option>
       <option value="low">Low</option>
     </select>
-    <select class="tb-select" id="filterTeam">
-      <option value="all">All teams</option>
+    <select class="tb-select" id="filterRegion">
+      <option value="all">All regions</option>
+    </select>
+    <select class="tb-select" id="filterShop">
+      <option value="all">All shops</option>
     </select>
     <select class="tb-select" id="filterMech">
       <option value="all">All mechanics</option>
@@ -293,6 +298,12 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
       </div>
       <div class="form-grid">
         <div class="form-row">
+          <label class="form-label">Shop</label>
+          <select class="form-select" id="woShop">
+            <option value="">Unassigned</option>
+          </select>
+        </div>
+        <div class="form-row">
           <label class="form-label">Date Opened</label>
           <input class="form-input" type="date" id="woDate">
         </div>
@@ -327,6 +338,7 @@ let currentTab  = 'board';
 let allWOs      = [];
 let allAssets   = [];
 let allPeople   = [];
+let allShops    = [];
 let selectedWO  = null;
 
 // ── Static event listeners ─────────────────────────────────────────
@@ -336,12 +348,16 @@ document.getElementById('logoutBtn').addEventListener('click', () => doLogout())
 document.getElementById('newWOBtn').addEventListener('click', () => openNewWO());
 document.getElementById('searchBox').addEventListener('input', () => applyFilter());
 document.getElementById('filterPri').addEventListener('change', () => applyFilter());
-document.getElementById('filterTeam').addEventListener('change', () => applyFilter());
+document.getElementById('filterRegion').addEventListener('change', () => applyFilter());
+document.getElementById('filterShop').addEventListener('change', () => applyFilter());
 document.getElementById('filterMech').addEventListener('change', () => applyFilter());
 document.getElementById('detailCancelBtn').addEventListener('click', () => cancelWO());
 document.getElementById('detailProgressBtn').addEventListener('click', () => advanceStatus());
 document.getElementById('saveNewWOBtn').addEventListener('click', () => saveNewWO());
 document.getElementById('woAssetSearch').addEventListener('input', e => searchAssets(e.target.value));
+
+// Restore today's session on load (keeps user logged in for the day)
+tryRestoreSession();
 
 // ── Event delegation ───────────────────────────────────────────────
 document.addEventListener('click', e => {
@@ -380,23 +396,44 @@ document.addEventListener('click', e => {
 });
 
 // ── Login ──────────────────────────────────────────────────────────
+const SESSION_KEY = 'rexius_wo_session';
+
+function todayStr() { return new Date().toISOString().slice(0, 10); }
+
+function enterApp(name) {
+  currentUser = name;
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('app').classList.add('active');
+  document.getElementById('topUser').textContent = name;
+  document.getElementById('woDate').value = todayStr();
+  loadData();
+}
+
 function doLogin() {
   const name = document.getElementById('loginName').value.trim();
   const pass = document.getElementById('loginPass').value;
   const err  = document.getElementById('loginErr');
   if (!name) { err.textContent = 'Please enter your name.'; err.classList.add('show'); return; }
   if (pass !== PASSWORD) { err.textContent = 'Incorrect password.'; err.classList.add('show'); return; }
-  currentUser = name;
   err.classList.remove('show');
+  try { localStorage.setItem(SESSION_KEY, JSON.stringify({ user: name, date: todayStr() })); } catch(e) {}
   rpc('log_access', { p_tool_name: 'work-orders', p_user_name: name, p_action: 'login' });
-  document.getElementById('loginScreen').style.display = 'none';
-  document.getElementById('app').classList.add('active');
-  document.getElementById('topUser').textContent = name;
-  document.getElementById('woDate').value = new Date().toISOString().slice(0, 10);
-  loadData();
+  enterApp(name);
+}
+
+// Restore an existing session if it was created today (auto-expires next calendar day)
+function tryRestoreSession() {
+  let saved;
+  try { saved = JSON.parse(localStorage.getItem(SESSION_KEY)); } catch(e) { saved = null; }
+  if (saved && saved.user && saved.date === todayStr()) {
+    enterApp(saved.user);
+  } else if (saved) {
+    try { localStorage.removeItem(SESSION_KEY); } catch(e) {}
+  }
 }
 
 function doLogout() {
+  try { localStorage.removeItem(SESSION_KEY); } catch(e) {}
   rpc('log_access', { p_tool_name: 'work-orders', p_user_name: currentUser, p_action: 'logout' });
   location.reload();
 }
@@ -414,6 +451,7 @@ async function loadData() {
     allWOs    = data.work_orders || [];
     allPeople = data.mechanics   || [];
     allAssets = data.assets      || [];
+    allShops  = data.shops       || [];
     populateFilters();
     render();
   } catch(e) {
@@ -423,9 +461,12 @@ async function loadData() {
 }
 
 function populateFilters() {
-  const teams = [...new Set(allWOs.map(w => w.team).filter(Boolean))].sort();
-  const ts = document.getElementById('filterTeam');
-  ts.innerHTML = '<option value="all">All teams</option>' + teams.map(t => `<option value="${t}">${t}</option>`).join('');
+  const regions = [...new Set(allShops.map(s => s.region).filter(Boolean))].sort();
+  const rs = document.getElementById('filterRegion');
+  rs.innerHTML = '<option value="all">All regions</option>' + regions.map(r => `<option value="${r}">${r}</option>`).join('');
+
+  const ss = document.getElementById('filterShop');
+  ss.innerHTML = '<option value="all">All shops</option>' + allShops.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
 
   const ms = document.getElementById('filterMech');
   ms.innerHTML = '<option value="all">All mechanics</option><option value="unassigned">Unassigned</option>' +
@@ -433,17 +474,22 @@ function populateFilters() {
 
   const wm = document.getElementById('woMechanic');
   wm.innerHTML = '<option value="">Unassigned</option>' + allPeople.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+
+  const wsh = document.getElementById('woShop');
+  wsh.innerHTML = '<option value="">Unassigned</option>' + allShops.map(s => `<option value="${s.id}">${s.name} (${s.region})</option>`).join('');
 }
 
 function getFiltered() {
-  const q    = document.getElementById('searchBox').value.toLowerCase();
-  const pri  = document.getElementById('filterPri').value;
-  const team = document.getElementById('filterTeam').value;
-  const mech = document.getElementById('filterMech').value;
+  const q      = document.getElementById('searchBox').value.toLowerCase();
+  const pri    = document.getElementById('filterPri').value;
+  const region = document.getElementById('filterRegion').value;
+  const shop   = document.getElementById('filterShop').value;
+  const mech   = document.getElementById('filterMech').value;
   return allWOs.filter(w => {
     if (q && !((w.asset_number||'').toLowerCase().includes(q) || (w.description||'').toLowerCase().includes(q) || (w.mechanic||'').toLowerCase().includes(q))) return false;
-    if (pri  !== 'all' && w.priority !== pri) return false;
-    if (team !== 'all' && w.team !== team) return false;
+    if (pri    !== 'all' && w.priority !== pri) return false;
+    if (region !== 'all' && w.region !== region) return false;
+    if (shop   !== 'all' && w.shop_id !== shop) return false;
     if (mech === 'unassigned' && w.mechanic_id) return false;
     if (mech !== 'all' && mech !== 'unassigned' && w.mechanic_id !== mech) return false;
     return true;
@@ -457,7 +503,7 @@ function render() {
   const wos    = getFiltered();
   const open   = wos.filter(w => w.status === 'open');
   const inprog = wos.filter(w => w.status === 'in_progress');
-  const done   = allWOs.filter(w => w.status === 'completed');
+  const done   = wos.filter(w => w.status === 'completed');
   const now    = new Date();
   const startOfWeek = new Date(now); startOfWeek.setDate(now.getDate() - now.getDay());
   const thisWeek = wos.filter(w => new Date(w.date_opened) >= startOfWeek);
@@ -474,7 +520,7 @@ function render() {
     <div class="stat urgent"><div class="stat-n" style="color:var(--red)">${urgent}</div><div class="stat-l">Urgent</div></div>
     <div class="stat high"><div class="stat-n" style="color:#ea580c">${high}</div><div class="stat-l">High Priority</div></div>
     <div class="stat normal"><div class="stat-n" style="color:var(--amber)">${open.length}</div><div class="stat-l">Open</div></div>
-    <div class="stat low"><div class="stat-n" style="color:var(--amber)">${inprog.length}</div><div class="stat-l">In Progress</div></div>
+    <div class="stat low"><div class="stat-n" style="color:var(--blue)">${inprog.length}</div><div class="stat-l">In Progress</div></div>
     <div class="stat done"><div class="stat-n" style="color:var(--green)">${unass}</div><div class="stat-l">Unassigned</div></div>
   </div>`;
 
@@ -494,6 +540,7 @@ function woCard(w) {
     <div class="wo-desc">${w.description || '—'}</div>
     <div class="wo-meta">
       <span class="wo-tag tag-team">${w.team || '—'}</span>
+      ${w.shop ? `<span class="wo-tag tag-shop">${w.shop}</span>` : ''}
       ${mech}${cost}
       <span class="wo-date">${fmtDate(w.date_opened)}</span>
     </div>
@@ -528,17 +575,18 @@ function renderTable(stats, wos) {
       <td><span style="font-family:var(--mono);font-size:12px;font-weight:600">${w.asset_number || '—'}</span></td>
       <td>${w.description || '—'}</td>
       <td><span style="font-size:11px;color:var(--gray)">${w.team || '—'}</span></td>
+      <td><span style="font-size:11px;color:var(--gray)">${w.shop || '—'}</span></td>
       <td>${pri}</td>
       <td>${st}</td>
       <td style="font-size:12px">${mech}</td>
       <td style="font-family:var(--mono);font-size:11px;color:var(--gray)">${cost}</td>
       <td style="font-family:var(--mono);font-size:11px;color:var(--gray)">${fmtDate(w.date_opened)}</td>
     </tr>`;
-  }).join('') : `<tr><td colspan="8"><div class="empty"><div class="empty-icon">📋</div><p>No work orders</p></div></td></tr>`;
+  }).join('') : `<tr><td colspan="9"><div class="empty"><div class="empty-icon">📋</div><p>No work orders</p></div></td></tr>`;
 
   document.getElementById('content').innerHTML = stats + `
     <table class="wo-table">
-      <thead><tr><th>Asset</th><th>Description</th><th>Team</th><th>Priority</th><th>Status</th><th>Mechanic</th><th>Cost</th><th>Date</th></tr></thead>
+      <thead><tr><th>Asset</th><th>Description</th><th>Group</th><th>Shop</th><th>Priority</th><th>Status</th><th>Mechanic</th><th>Cost</th><th>Date</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
 }
@@ -557,7 +605,8 @@ function openDetail(id) {
     <div class="modal-grid">
       <div class="modal-section"><div class="modal-label">Status</div><div class="modal-value"><span class="st st-${w.status}">${w.status.replace('_', ' ')}</span></div></div>
       <div class="modal-section"><div class="modal-label">Priority</div><div class="modal-value">${w.priority ? `<span class="pri pri-${w.priority}">${w.priority}</span>` : '—'}</div></div>
-      <div class="modal-section"><div class="modal-label">Team</div><div class="modal-value">${w.team || '—'}</div></div>
+      <div class="modal-section"><div class="modal-label">Group</div><div class="modal-value">${w.team || '—'}</div></div>
+      <div class="modal-section"><div class="modal-label">Shop</div><div class="modal-value">${w.shop ? `${w.shop}${w.region ? ` · ${w.region}` : ''}` : '—'}</div></div>
       <div class="modal-section"><div class="modal-label">Assigned To</div><div class="modal-value">${w.mechanic || 'Unassigned'}</div></div>
       <div class="modal-section"><div class="modal-label">Date Opened</div><div class="modal-value">${fmtDate(w.date_opened)}</div></div>
       <div class="modal-section"><div class="modal-label">Parts Cost Est.</div><div class="modal-value">${cost}</div></div>
@@ -600,6 +649,7 @@ function openNewWO() {
   document.getElementById('woCost').value = '';
   document.getElementById('woPriority').value = 'normal';
   document.getElementById('woMechanic').value = '';
+  document.getElementById('woShop').value = '';
   document.getElementById('woDate').value = new Date().toISOString().slice(0, 10);
   document.getElementById('woError').style.display = 'none';
   document.getElementById('newWOModal').classList.add('open');
@@ -646,6 +696,7 @@ async function saveNewWO() {
   }
   const cost   = document.getElementById('woCost').value;
   const mechId = document.getElementById('woMechanic').value;
+  const shopId = document.getElementById('woShop').value;
   const result = await rpc('create_work_order', {
     p_asset_id:    assetId,
     p_description: desc,
@@ -655,6 +706,7 @@ async function saveNewWO() {
     p_notes:       document.getElementById('woNotes').value || null,
     p_parts_cost:  cost ? parseFloat(cost) : null,
     p_created_by:  currentUser,
+    p_shop_id:     shopId || null,
   });
   if (result?.success) {
     closeModal('newWOModal');
