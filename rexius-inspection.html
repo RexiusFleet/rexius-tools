@@ -33,22 +33,15 @@
 html, body { height: 100%; }
 body { font-family: var(--body); background: var(--surface); color: var(--ink); -webkit-font-smoothing: antialiased; }
 
-/* ── SCREENS ── */
 .screen { display: none; min-height: 100vh; flex-direction: column; }
 .screen.active { display: flex; }
 
-/* ── TOP BAR ── */
 .topbar {
-  background: var(--ink);
-  color: var(--paper);
-  padding: 0 16px;
-  height: 50px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  background: var(--ink); color: var(--paper);
+  padding: 0 16px; height: 50px;
+  display: flex; align-items: center; justify-content: space-between;
   border-bottom: 2px solid var(--green);
-  position: sticky; top: 0; z-index: 50;
-  flex-shrink: 0;
+  position: sticky; top: 0; z-index: 50; flex-shrink: 0;
 }
 .topbar-brand { font-family: var(--display); font-size: 14px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--green); }
 .topbar-center { font-family: var(--display); font-size: 13px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: rgba(255,255,255,.55); }
@@ -58,34 +51,19 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
 .back-btn { font-family: var(--mono); font-size: 11px; color: rgba(255,255,255,.45); background: none; border: 1px solid rgba(255,255,255,.12); padding: 5px 11px; cursor: pointer; transition: all .12s; }
 .back-btn:hover { border-color: var(--green); color: var(--green); }
 
-/* ── CONTENT ── */
 .content { flex: 1; padding: 16px; max-width: 600px; margin: 0 auto; width: 100%; padding-bottom: 32px; }
 
-/* ── ASSET HERO ── */
-.asset-hero {
-  background: var(--green);
-  color: #fff;
-  padding: 18px 16px;
-  margin-bottom: 12px;
-  border-left: 4px solid var(--green-mid);
-}
+.asset-hero { background: var(--green); color: #fff; padding: 18px 16px; margin-bottom: 12px; border-left: 4px solid var(--green-mid); }
 .asset-hero-num { font-family: var(--display); font-size: 30px; font-weight: 700; letter-spacing: -.01em; line-height: 1; }
 .asset-hero-desc { font-family: var(--body); font-size: 13px; opacity: .8; margin-top: 3px; }
 .asset-hero-team { font-family: var(--mono); font-size: 10px; opacity: .6; margin-top: 5px; letter-spacing: .08em; text-transform: uppercase; }
 
-/* ── CARDS ── */
 .card { background: var(--paper); border: 1px solid var(--border); margin-bottom: 10px; }
 .card-header { padding: 10px 14px; border-bottom: 1px solid var(--border); background: var(--surface); }
 .card-label { font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--gray); }
 .card-body { padding: 14px; }
 
-/* ── ASSET SEARCH ── */
-.asset-search-input {
-  width: 100%; font-family: var(--body); font-size: 15px;
-  padding: 10px 13px; border: 1px solid var(--border);
-  background: var(--paper); color: var(--ink); outline: none;
-  transition: border-color .15s;
-}
+.asset-search-input { width: 100%; font-family: var(--body); font-size: 15px; padding: 10px 13px; border: 1px solid var(--border); background: var(--paper); color: var(--ink); outline: none; transition: border-color .15s; }
 .asset-search-input:focus { border-color: var(--green); }
 .asset-drop { border: 1px solid var(--border); background: var(--paper); max-height: 220px; overflow-y: auto; z-index: 9999; margin-top: 4px; display: none; }
 .asset-drop.open { display: block; }
@@ -94,12 +72,7 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
 .asset-opt:hover { background: var(--green-light); }
 .asset-opt-num { font-family: var(--mono); font-size: 13px; font-weight: 600; color: var(--ink); }
 .asset-opt-desc { font-size: 12px; color: var(--gray); margin-left: 8px; }
-.asset-confirmed { display: flex; align-items: center; gap: 8px; padding: 9px 13px; background: var(--green-light); border: 1px solid var(--green); margin-top: 6px; }
-.asset-confirmed-num { font-family: var(--mono); font-size: 13px; font-weight: 600; color: var(--green); }
-.asset-confirmed-desc { font-size: 12px; color: var(--green-mid); }
-.clear-asset { margin-left: auto; font-family: var(--mono); font-size: 11px; color: var(--gray); background: none; border: none; cursor: pointer; }
 
-/* ── INSPECTION TYPE ── */
 .type-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .type-btn { background: var(--paper); border: 1px solid var(--border); padding: 14px 10px; text-align: center; cursor: pointer; transition: all .15s; }
 .type-btn:hover { border-color: var(--green); }
@@ -110,7 +83,6 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
 .type-label { font-family: var(--display); font-size: 14px; font-weight: 700; letter-spacing: .02em; text-transform: uppercase; color: var(--ink); }
 .type-sub { font-family: var(--mono); font-size: 10px; color: var(--gray); margin-top: 2px; }
 
-/* ── DRIVER SEARCH ── */
 .driver-input { width: 100%; font-family: var(--body); font-size: 15px; padding: 10px 13px; border: 1px solid var(--border); background: var(--paper); color: var(--ink); outline: none; transition: border-color .15s; }
 .driver-input:focus { border-color: var(--green); }
 .driver-drop { border: 1px solid var(--border); background: var(--paper); max-height: 200px; overflow-y: auto; z-index: 9999; margin-top: 4px; display: none; }
@@ -125,18 +97,15 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
 .driver-badge-name { font-size: 14px; font-weight: 600; color: var(--green); flex: 1; }
 .driver-clear { font-family: var(--mono); font-size: 11px; color: var(--gray); background: none; border: none; cursor: pointer; }
 
-/* ── START BTN ── */
 .start-btn { width: 100%; font-family: var(--display); font-size: 16px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 14px; border: none; background: var(--ink); color: var(--paper); cursor: pointer; margin-top: 8px; transition: background .12s; }
 .start-btn:hover:not(:disabled) { background: var(--green); }
 .start-btn:disabled { background: var(--border); color: var(--gray); cursor: not-allowed; }
 
-/* ── PROGRESS ── */
 .progress-wrap { margin: 0 0 14px; }
 .progress-labels { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 11px; color: var(--gray); margin-bottom: 5px; }
 .progress-track { height: 4px; background: var(--border); }
 .progress-fill { height: 100%; background: var(--green); transition: width .3s; }
 
-/* ── CHECKLIST ── */
 .check-item { border-bottom: 1px solid var(--surface); }
 .check-item:last-child { border-bottom: none; }
 .check-row { display: flex; align-items: center; padding: 12px 14px; gap: 12px; }
@@ -147,7 +116,6 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
 .pf-btn.pass { border-color: var(--green); background: var(--green-light); color: var(--green); }
 .pf-btn.fail { border-color: var(--red); background: var(--red-light); color: var(--red); }
 
-/* ── DEFECT PANEL ── */
 .defect-panel { margin: 0 14px 12px; padding: 12px; background: var(--red-light); border-left: 3px solid var(--red); }
 .defect-panel-title { font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--red); margin-bottom: 8px; }
 .defect-textarea { width: 100%; font-family: var(--body); font-size: 13px; padding: 8px 10px; border: 1px solid #fca5a5; background: #fff; color: var(--ink); resize: none; min-height: 60px; outline: none; }
@@ -158,16 +126,7 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
 .sev-btn.major.sel  { border-color: var(--orange); background: var(--orange-light); color: var(--orange); }
 .sev-btn.critical.sel { border-color: var(--red); background: var(--red-light); color: var(--red); }
 
-/* ── PHOTO UPLOAD ── */
-.photo-upload-btn {
-  display: flex; align-items: center; gap: 8px;
-  margin-top: 10px; width: 100%;
-  font-family: var(--mono); font-size: 11px; font-weight: 500;
-  letter-spacing: .05em; text-transform: uppercase;
-  padding: 8px 12px; border: 1px dashed #fca5a5;
-  background: #fff; color: var(--red); cursor: pointer;
-  transition: all .12s;
-}
+.photo-upload-btn { display: flex; align-items: center; gap: 8px; margin-top: 10px; width: 100%; font-family: var(--mono); font-size: 11px; font-weight: 500; letter-spacing: .05em; text-transform: uppercase; padding: 8px 12px; border: 1px dashed #fca5a5; background: #fff; color: var(--red); cursor: pointer; transition: all .12s; }
 .photo-upload-btn:hover { border-color: var(--red); background: var(--red-light); }
 .photo-upload-btn input { display: none; }
 .photo-preview-wrap { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
@@ -176,24 +135,20 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
 .photo-remove { position: absolute; top: -5px; right: -5px; width: 16px; height: 16px; border-radius: 50%; background: var(--red); color: #fff; font-size: 10px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1; }
 .photo-uploading { font-family: var(--mono); font-size: 10px; color: var(--gray); margin-top: 4px; }
 
-/* ── NUMBER / TEXT inputs ── */
 .check-number { width: 100%; font-family: var(--mono); font-size: 15px; padding: 9px 12px; border: 1px solid var(--border); background: var(--paper); color: var(--ink); outline: none; margin-top: 6px; }
 .check-number:focus { border-color: var(--green); }
 .check-textarea { width: 100%; font-family: var(--body); font-size: 14px; padding: 9px 12px; border: 1px solid var(--border); background: var(--paper); color: var(--ink); resize: none; min-height: 72px; outline: none; margin-top: 6px; }
 .check-textarea:focus { border-color: var(--green); }
 
-/* ── CERTIFICATION ── */
 .cert-box { background: var(--paper); border: 1px solid var(--border); padding: 14px; margin-bottom: 10px; }
 .cert-label { display: flex; align-items: flex-start; gap: 12px; cursor: pointer; }
 .cert-check { width: 20px; height: 20px; margin-top: 1px; accent-color: var(--green); flex-shrink: 0; cursor: pointer; }
 .cert-text { font-size: 13px; color: var(--ink); line-height: 1.5; }
 
-/* ── SUBMIT BTN ── */
 .submit-btn { width: 100%; font-family: var(--display); font-size: 16px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 14px; border: none; background: var(--ink); color: var(--paper); cursor: pointer; margin-top: 8px; transition: background .12s; -webkit-tap-highlight-color: transparent; }
 .submit-btn:hover:not(:disabled) { background: var(--green); }
 .submit-btn:disabled { background: var(--border); color: var(--gray); cursor: not-allowed; }
 
-/* ── SUCCESS ── */
 .success-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 24px; text-align: center; gap: 12px; }
 .success-icon { font-size: 56px; }
 .success-title { font-family: var(--display); font-size: 28px; font-weight: 700; letter-spacing: .02em; text-transform: uppercase; color: var(--green); }
@@ -202,20 +157,14 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
 .new-btn { font-family: var(--display); font-size: 14px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 12px 28px; border: 2px solid var(--green); background: transparent; color: var(--green); cursor: pointer; margin-top: 12px; transition: all .12s; }
 .new-btn:hover { background: var(--green); color: #fff; }
 
-/* ── LOADING ── */
 .loading-overlay { position: fixed; inset: 0; background: rgba(250,250,248,.92); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 200; gap: 12px; }
 .loading-overlay.show { display: flex; }
 .spinner { width: 28px; height: 28px; border: 3px solid var(--border); border-top-color: var(--green); border-radius: 50%; animation: spin .6s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .loading-text { font-family: var(--mono); font-size: 12px; color: var(--gray); letter-spacing: .05em; }
 
-/* ── ERROR ── */
 .error-banner { background: var(--red-light); border-left: 3px solid var(--red); padding: 10px 13px; font-size: 13px; color: var(--red); margin-bottom: 10px; display: none; }
 .error-banner.show { display: block; }
-
-/* ── STATUS BADGE ── */
-.status-badge { display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
-.status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
 </style>
 </head>
 <body>
@@ -232,50 +181,42 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
     <div class="topbar-brand">Rexius Fleet</div>
     <div class="topbar-center" id="setupTopLabel">Inspection</div>
     <div class="lang-toggle">
-      <button class="lang-btn active" onclick="setLang('en')" id="langEn">EN</button>
-      <button class="lang-btn" onclick="setLang('es')" id="langEs">ES</button>
+      <button class="lang-btn active" id="langEn">EN</button>
+      <button class="lang-btn" id="langEs">ES</button>
     </div>
   </div>
   <div class="content">
     <div class="error-banner" id="setupError"></div>
-
-    <!-- Asset hero or search -->
     <div id="assetHero"></div>
-
-    <!-- Inspection type -->
     <div class="card" id="typeCard">
       <div class="card-header"><span class="card-label" id="typeCardLabel">Inspection Type</span></div>
       <div class="card-body"><div class="type-grid" id="typeGrid"></div></div>
     </div>
-
-    <!-- Driver -->
     <div class="card">
       <div class="card-header"><span class="card-label" id="driverCardLabel">Driver / Operator</span></div>
       <div class="card-body">
         <div style="position:relative">
-          <input class="driver-input" id="driverInput" autocomplete="off" autocorrect="off" spellcheck="false"
-            placeholder="Search name..." oninput="onDriverSearch(this.value)" onfocus="onDriverSearch(this.value)">
+          <input class="driver-input" id="driverInput" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Search name...">
           <div class="driver-drop" id="driverDrop"></div>
         </div>
         <div id="driverBadge" style="display:none" class="driver-badge">
           <span class="driver-badge-name" id="driverBadgeName"></span>
-          <button class="driver-clear" onclick="clearDriver()">✕</button>
+          <button class="driver-clear" id="driverClearBtn">✕</button>
         </div>
       </div>
     </div>
-
-    <button class="start-btn" id="startBtn" onclick="startInspection()" disabled>Start Inspection</button>
+    <button class="start-btn" id="startBtn" disabled>Start Inspection</button>
   </div>
 </div>
 
 <!-- SCREEN 2: CHECKLIST -->
 <div class="screen" id="screenChecklist">
   <div class="topbar">
-    <button class="back-btn" onclick="goBack()">← Back</button>
+    <button class="back-btn" id="backBtn">← Back</button>
     <div class="topbar-center" id="checklistAssetLabel"></div>
     <div class="lang-toggle">
-      <button class="lang-btn active" onclick="setLang('en')" id="langEn2">EN</button>
-      <button class="lang-btn" onclick="setLang('es')" id="langEs2">ES</button>
+      <button class="lang-btn active" id="langEn2">EN</button>
+      <button class="lang-btn" id="langEs2">ES</button>
     </div>
   </div>
   <div class="content">
@@ -289,11 +230,11 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
     <div class="card" id="checklistCard"></div>
     <div class="cert-box" id="certBox">
       <label class="cert-label">
-        <input type="checkbox" class="cert-check" id="certCheck" onchange="onCertChange()">
+        <input type="checkbox" class="cert-check" id="certCheck">
         <span class="cert-text" id="certText">I certify that I am the person named above and that this inspection was conducted by me to the best of my ability.</span>
       </label>
     </div>
-    <button class="submit-btn" id="submitBtn" onclick="submitInspection()" disabled>Submit Inspection</button>
+    <button class="submit-btn" id="submitBtn" disabled>Submit Inspection</button>
     <div style="height:40px"></div>
   </div>
 </div>
@@ -310,7 +251,7 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
     <div class="success-title" id="successTitle">Submitted</div>
     <div class="success-sub" id="successSub">Inspection recorded successfully.</div>
     <div class="success-defect" id="successDefect"></div>
-    <button class="new-btn" onclick="resetAll()" id="newInspBtn">New Inspection</button>
+    <button class="new-btn" id="newInspBtn">New Inspection</button>
   </div>
 </div>
 
@@ -320,7 +261,6 @@ const KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 const H = { apikey: KEY, Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' };
 const BUCKET = 'rexius-fleet-photos';
 
-// ── State ──────────────────────────────────────────────────────────
 let lang = 'en';
 let asset = null;
 let teamRef = null;
@@ -329,7 +269,7 @@ let selectedDriver = null;
 let formItems = [];
 let responses = {};
 let allPeople = [];
-let defectPhotos = {};  // formItemId -> [{ file, previewUrl, storagePath }]
+let defectPhotos = {};
 
 // ── i18n ───────────────────────────────────────────────────────────
 const T = {
@@ -362,6 +302,118 @@ const T = {
 };
 const t = k => T[lang][k] || T.en[k] || k;
 
+// ── Static event listeners (attached once on load) ─────────────────
+document.getElementById('langEn').addEventListener('click', () => setLang('en'));
+document.getElementById('langEs').addEventListener('click', () => setLang('es'));
+document.getElementById('langEn2').addEventListener('click', () => setLang('en'));
+document.getElementById('langEs2').addEventListener('click', () => setLang('es'));
+document.getElementById('backBtn').addEventListener('click', () => goBack());
+document.getElementById('startBtn').addEventListener('click', () => startInspection());
+document.getElementById('submitBtn').addEventListener('click', () => submitInspection());
+document.getElementById('newInspBtn').addEventListener('click', () => resetAll());
+document.getElementById('driverClearBtn').addEventListener('click', () => clearDriver());
+document.getElementById('certCheck').addEventListener('change', () => onCertChange());
+
+const driverInput = document.getElementById('driverInput');
+driverInput.addEventListener('input', () => onDriverSearch(driverInput.value));
+driverInput.addEventListener('focus', () => onDriverSearch(driverInput.value));
+
+// ── Event delegation for dynamically generated content ─────────────
+document.addEventListener('click', e => {
+  // Type grid buttons
+  const typeBtn = e.target.closest('.type-btn');
+  if (typeBtn && typeBtn.dataset.type) {
+    selectType(typeBtn.dataset.type);
+    return;
+  }
+
+  // Asset search options
+  const assetOpt = e.target.closest('.asset-opt[data-idx]');
+  if (assetOpt) {
+    pickAsset(parseInt(assetOpt.dataset.idx));
+    return;
+  }
+
+  // Driver options
+  const driverOpt = e.target.closest('.driver-opt[data-idx]');
+  if (driverOpt) {
+    pickDriver(parseInt(driverOpt.dataset.idx));
+    return;
+  }
+
+  // Pass/fail buttons
+  const pfBtn = e.target.closest('.pf-btn[data-item-id][data-value]');
+  if (pfBtn) {
+    setResp(pfBtn.dataset.itemId, pfBtn.dataset.value);
+    return;
+  }
+
+  // Severity buttons
+  const sevBtn = e.target.closest('.sev-btn[data-item-id][data-sev]');
+  if (sevBtn) {
+    setSev(sevBtn.dataset.itemId, sevBtn.dataset.sev);
+    return;
+  }
+
+  // Photo remove buttons
+  const photoRemove = e.target.closest('.photo-remove[data-item-id][data-idx]');
+  if (photoRemove) {
+    removePhoto(photoRemove.dataset.itemId, parseInt(photoRemove.dataset.idx));
+    return;
+  }
+});
+
+// Input delegation for dynamically generated inputs/textareas
+document.addEventListener('input', e => {
+  const el = e.target;
+
+  // Number/text checklist inputs
+  if (el.classList.contains('check-number') && el.dataset.itemId) {
+    setResp(el.dataset.itemId, el.value);
+    return;
+  }
+  if (el.classList.contains('check-textarea') && el.dataset.itemId) {
+    setResp(el.dataset.itemId, el.value);
+    return;
+  }
+
+  // Defect notes textarea
+  if (el.classList.contains('defect-textarea') && el.dataset.itemId) {
+    setDefectNote(el.dataset.itemId, el.value);
+    return;
+  }
+
+  // Asset search input (dynamically injected)
+  if (el.id === 'assetSearchInput') {
+    onAssetSearch(el.value);
+    return;
+  }
+});
+
+// Focus delegation for asset search (dynamically injected)
+document.addEventListener('focusin', e => {
+  if (e.target.id === 'assetSearchInput') {
+    onAssetSearch(e.target.value);
+  }
+});
+
+// Photo file input change delegation
+document.addEventListener('change', e => {
+  const el = e.target;
+  if (el.classList.contains('photo-file-input') && el.dataset.itemId) {
+    onPhotoSelected(el.dataset.itemId, el);
+  }
+});
+
+// Close dropdowns on outside click
+document.addEventListener('mousedown', e => {
+  if (!e.target.closest('.driver-drop') && !e.target.closest('#driverInput'))
+    setTimeout(() => document.getElementById('driverDrop')?.classList.remove('open'), 150);
+  if (!e.target.closest('.asset-drop') && !e.target.closest('#assetSearchInput'))
+    setTimeout(() => document.getElementById('assetDrop')?.classList.remove('open'), 150);
+});
+
+// ── Language ───────────────────────────────────────────────────────
 function setLang(l) {
   lang = l;
   ['langEn','langEn2'].forEach(id => document.getElementById(id)?.classList.toggle('active', l==='en'));
@@ -370,8 +422,10 @@ function setLang(l) {
 }
 
 function refreshLabels() {
-  const lk = ['typeCardLabel','driverCardLabel'];
-  lk.forEach(id => { const el=document.getElementById(id); if(el) el.textContent = t(id); });
+  ['typeCardLabel','driverCardLabel'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = t(id);
+  });
   const di = document.getElementById('driverInput');
   if (di) di.placeholder = t('searchDriver');
   const sb = document.getElementById('startBtn');
@@ -389,7 +443,7 @@ async function init() {
   showLoading(true, t('loading'));
   await loadPeople();
   const params = new URLSearchParams(location.search);
-  let assetNum = params.get('a') || params.get('asset');
+  let assetNum = params.get('asset') || params.get('a');
   if (!assetNum) {
     const m = location.pathname.match(/\/i\/([^?#]+)/);
     if (m) assetNum = decodeURIComponent(m[1]);
@@ -406,11 +460,10 @@ async function loadPeople() {
   try {
     const r = await fetch(`${SUPA}/rest/v1/people?select=id,first_name,last_name&is_active=eq.true&deleted_at=is.null&order=last_name`, { headers: H });
     const data = await r.json();
-    allPeople = Array.isArray(data) ? data.map(p => ({ id: p.id, name: [p.first_name, p.last_name].filter(Boolean).join(' ').trim(), isNew: false })).filter(p=>p.name) : [];
+    allPeople = Array.isArray(data) ? data.map(p => ({ id: p.id, name: [p.first_name, p.last_name].filter(Boolean).join(' ').trim(), isNew: false })).filter(p => p.name) : [];
     const seen = new Set();
-    allPeople = allPeople.filter(p => { if(seen.has(p.name.toLowerCase())) return false; seen.add(p.name.toLowerCase()); return true; });
+    allPeople = allPeople.filter(p => { if (seen.has(p.name.toLowerCase())) return false; seen.add(p.name.toLowerCase()); return true; });
   } catch(e) { allPeople = []; }
-  // Load assets for search
   try {
     const r = await fetch(`${SUPA}/rest/v1/assets?select=id,asset_number,make,model,year,status,team_id,teams(name,import_ref)&deleted_at=is.null&order=asset_number`, { headers: H });
     window._allAssets = await r.json();
@@ -419,8 +472,14 @@ async function loadPeople() {
 
 async function loadAsset(assetNum) {
   try {
-    const r = await fetch(`${SUPA}/rest/v1/assets?asset_number=eq.${encodeURIComponent(assetNum)}&select=id,asset_number,make,model,year,status,team_id,teams(name,import_ref)&deleted_at=is.null&limit=1`, { headers: H });
-    const data = await r.json();
+    const encoded = encodeURIComponent(assetNum);
+    let r = await fetch(`${SUPA}/rest/v1/assets?asset_number=eq.${encoded}&select=id,asset_number,make,model,year,status,team_id,teams(name,import_ref)&deleted_at=is.null&limit=1`, { headers: H });
+    let data = await r.json();
+    if (!data?.[0]) {
+      const fallback = assetNum.replace(/[-_]/g, ' ');
+      r = await fetch(`${SUPA}/rest/v1/assets?asset_number=ilike.*${encodeURIComponent(fallback)}*&select=id,asset_number,make,model,year,status,team_id,teams(name,import_ref)&deleted_at=is.null&limit=1`, { headers: H });
+      data = await r.json();
+    }
     if (!data?.[0]) { showError('setupError', `Asset "${assetNum}" not found.`); showAssetSearch(); return; }
     setAsset(data[0]);
   } catch(e) { showError('setupError', 'Failed to load asset.'); showAssetSearch(); }
@@ -429,10 +488,9 @@ async function loadAsset(assetNum) {
 function showAssetSearch() {
   document.getElementById('assetHero').innerHTML = `
     <div class="card" style="margin-bottom:10px;position:relative;z-index:200">
-      <div class="card-header"><span class="card-label" id="assetSearchLabel">${t('assetLabel')}</span></div>
+      <div class="card-header"><span class="card-label">${t('assetLabel')}</span></div>
       <div class="card-body" style="position:relative">
-        <input class="asset-search-input" id="assetSearchInput" autocomplete="off" autocorrect="off"
-          placeholder="${t('searchAsset')}" oninput="onAssetSearch(this.value)" onfocus="onAssetSearch(this.value)">
+        <input class="asset-search-input" id="assetSearchInput" autocomplete="off" autocorrect="off" placeholder="${t('searchAsset')}">
         <div class="asset-drop" id="assetDrop"></div>
       </div>
     </div>`;
@@ -451,11 +509,17 @@ function onAssetSearch(val) {
     return an.includes(q) || desc.includes(val.toLowerCase());
   }).slice(0, 10);
   window._assetCandidates = results;
-  if (!results.length) { drop.innerHTML = `<div class="asset-opt"><span style="color:var(--gray);font-size:13px">No assets found</span></div>`; drop.classList.add('open'); return; }
-  drop.innerHTML = results.map((a,i) => {
+  if (!results.length) {
+    drop.innerHTML = `<div class="asset-opt"><span style="color:var(--gray);font-size:13px">No assets found</span></div>`;
+    drop.classList.add('open');
+    return;
+  }
+  drop.innerHTML = results.map((a, i) => {
     const desc = [a.year,a.make,a.model].filter(Boolean).join(' ');
-    const badge = a.status==='in_service' ? `<span style="font-family:var(--mono);font-size:9px;padding:2px 5px;background:var(--green-light);color:var(--green);font-weight:600">${t('inService')}</span>` : `<span style="font-family:var(--mono);font-size:9px;padding:2px 5px;background:var(--amber-light);color:var(--amber);font-weight:600">${t('outOfService')}</span>`;
-    return `<div class="asset-opt" onclick="pickAsset(${i})"><div><span class="asset-opt-num">${a.asset_number}</span><span class="asset-opt-desc">${desc}</span></div>${badge}</div>`;
+    const badge = a.status === 'in_service'
+      ? `<span style="font-family:var(--mono);font-size:9px;padding:2px 5px;background:var(--green-light);color:var(--green);font-weight:600">${t('inService')}</span>`
+      : `<span style="font-family:var(--mono);font-size:9px;padding:2px 5px;background:var(--amber-light);color:var(--amber);font-weight:600">${t('outOfService')}</span>`;
+    return `<div class="asset-opt" data-idx="${i}"><div><span class="asset-opt-num">${a.asset_number}</span><span class="asset-opt-desc">${desc}</span></div>${badge}</div>`;
   }).join('');
   drop.classList.add('open');
 }
@@ -492,25 +556,26 @@ function getTypes() {
 }
 
 const TYPE_DEF = {
-  vehicle_pretrip:   { icon:'🌅', en:'Pre-Trip',    es:'Pre-Viaje',    sub_en:'Start of shift', sub_es:'Inicio del turno' },
-  vehicle_posttrip:  { icon:'🌆', en:'Post-Trip',   es:'Post-Viaje',   sub_en:'End of shift',   sub_es:'Fin del turno' },
-  trailer_pretrip:   { icon:`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 100' width='52' height='44'><rect x='40' y='8' width='180' height='44' rx='3' fill='currentColor'/><line x1='130' y1='8' x2='130' y2='52' stroke='#fafaf8' stroke-width='1.5' opacity='0.5'/><rect x='40' y='52' width='180' height='7' rx='0' fill='currentColor'/><rect x='110' y='59' width='50' height='5' rx='0' fill='currentColor'/><circle cx='118' cy='78' r='17' fill='currentColor'/><circle cx='118' cy='78' r='8' fill='#fafaf8'/><circle cx='118' cy='78' r='3' fill='currentColor'/><circle cx='152' cy='78' r='17' fill='currentColor'/><circle cx='152' cy='78' r='8' fill='#fafaf8'/><circle cx='152' cy='78' r='3' fill='currentColor'/><rect x='0' y='52' width='40' height='7' rx='0' fill='currentColor'/><circle cx='0' cy='55' r='7' fill='none' stroke='currentColor' stroke-width='4'/><line x1='14' y1='59' x2='14' y2='76' stroke='currentColor' stroke-width='4' stroke-linecap='round'/><line x1='10' y1='76' x2='18' y2='76' stroke='currentColor' stroke-width='3' stroke-linecap='round'/></svg>`, en:'Trailer Pre', es:'Remolque Pre', sub_en:'Before towing',  sub_es:'Antes de remolcar' },
-  trailer_posttrip:  { icon:`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 100' width='52' height='44'><rect x='40' y='8' width='180' height='44' rx='3' fill='currentColor'/><line x1='130' y1='8' x2='130' y2='52' stroke='#fafaf8' stroke-width='1.5' opacity='0.5'/><rect x='40' y='52' width='180' height='7' rx='0' fill='currentColor'/><rect x='110' y='59' width='50' height='5' rx='0' fill='currentColor'/><circle cx='118' cy='78' r='17' fill='currentColor'/><circle cx='118' cy='78' r='8' fill='#fafaf8'/><circle cx='118' cy='78' r='3' fill='currentColor'/><circle cx='152' cy='78' r='17' fill='currentColor'/><circle cx='152' cy='78' r='8' fill='#fafaf8'/><circle cx='152' cy='78' r='3' fill='currentColor'/><rect x='0' y='52' width='40' height='7' rx='0' fill='currentColor'/><circle cx='0' cy='55' r='7' fill='none' stroke='currentColor' stroke-width='4'/><line x1='14' y1='59' x2='14' y2='76' stroke='currentColor' stroke-width='4' stroke-linecap='round'/><line x1='10' y1='76' x2='18' y2='76' stroke='currentColor' stroke-width='3' stroke-linecap='round'/><circle cx='207' cy='18' r='13' fill='#1a5c32'/><polyline points='200,18 205,24 215,10' fill='none' stroke='#fafaf8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/></svg>`, en:'Trailer Post',es:'Remolque Post',sub_en:'After towing',   sub_es:'Después de remolcar' },
-  equip_preshift:    { icon:'🌅', en:'Pre-Shift',   es:'Pre-Turno',    sub_en:'Start of shift', sub_es:'Inicio del turno' },
-  equip_postshift:   { icon:'🌆', en:'Post-Shift',  es:'Post-Turno',   sub_en:'End of shift',   sub_es:'Fin del turno' },
+  vehicle_pretrip:  { icon:'🌅', en:'Pre-Trip',   es:'Pre-Viaje',   sub_en:'Start of shift', sub_es:'Inicio del turno' },
+  vehicle_posttrip: { icon:'🌆', en:'Post-Trip',  es:'Post-Viaje',  sub_en:'End of shift',   sub_es:'Fin del turno' },
+  trailer_pretrip:  { icon:`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 100' width='52' height='44'><rect x='40' y='8' width='180' height='44' rx='3' fill='currentColor'/><line x1='130' y1='8' x2='130' y2='52' stroke='#fafaf8' stroke-width='1.5' opacity='0.5'/><rect x='40' y='52' width='180' height='7' rx='0' fill='currentColor'/><rect x='110' y='59' width='50' height='5' rx='0' fill='currentColor'/><circle cx='118' cy='78' r='17' fill='currentColor'/><circle cx='118' cy='78' r='8' fill='#fafaf8'/><circle cx='118' cy='78' r='3' fill='currentColor'/><circle cx='152' cy='78' r='17' fill='currentColor'/><circle cx='152' cy='78' r='8' fill='#fafaf8'/><circle cx='152' cy='78' r='3' fill='currentColor'/><rect x='0' y='52' width='40' height='7' rx='0' fill='currentColor'/><circle cx='0' cy='55' r='7' fill='none' stroke='currentColor' stroke-width='4'/><line x1='14' y1='59' x2='14' y2='76' stroke='currentColor' stroke-width='4' stroke-linecap='round'/><line x1='10' y1='76' x2='18' y2='76' stroke='currentColor' stroke-width='3' stroke-linecap='round'/></svg>`, en:'Trailer Pre', es:'Remolque Pre', sub_en:'Before towing', sub_es:'Antes de remolcar' },
+  trailer_posttrip: { icon:`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 100' width='52' height='44'><rect x='40' y='8' width='180' height='44' rx='3' fill='currentColor'/><line x1='130' y1='8' x2='130' y2='52' stroke='#fafaf8' stroke-width='1.5' opacity='0.5'/><rect x='40' y='52' width='180' height='7' rx='0' fill='currentColor'/><rect x='110' y='59' width='50' height='5' rx='0' fill='currentColor'/><circle cx='118' cy='78' r='17' fill='currentColor'/><circle cx='118' cy='78' r='8' fill='#fafaf8'/><circle cx='118' cy='78' r='3' fill='currentColor'/><circle cx='152' cy='78' r='17' fill='currentColor'/><circle cx='152' cy='78' r='8' fill='#fafaf8'/><circle cx='152' cy='78' r='3' fill='currentColor'/><rect x='0' y='52' width='40' height='7' rx='0' fill='currentColor'/><circle cx='0' cy='55' r='7' fill='none' stroke='currentColor' stroke-width='4'/><line x1='14' y1='59' x2='14' y2='76' stroke='currentColor' stroke-width='4' stroke-linecap='round'/><line x1='10' y1='76' x2='18' y2='76' stroke='currentColor' stroke-width='3' stroke-linecap='round'/><circle cx='207' cy='18' r='13' fill='#1a5c32'/><polyline points='200,18 205,24 215,10' fill='none' stroke='#fafaf8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/></svg>`, en:'Trailer Post', es:'Remolque Post', sub_en:'After towing', sub_es:'Después de remolcar' },
+  equip_preshift:   { icon:'🌅', en:'Pre-Shift',  es:'Pre-Turno',   sub_en:'Start of shift', sub_es:'Inicio del turno' },
+  equip_postshift:  { icon:'🌆', en:'Post-Shift', es:'Post-Turno',  sub_en:'End of shift',   sub_es:'Fin del turno' },
 };
 
 function renderTypeGrid() {
   const grid = document.getElementById('typeGrid');
   if (!grid || !asset) return;
   const types = getTypes();
+  // Use data-type attribute instead of inline onclick
   grid.innerHTML = types.map(type => {
     const d = TYPE_DEF[type] || {};
     const sel = inspType === type;
-    return `<div class="type-btn${sel?' selected':''}" onclick="selectType('${type}')">
+    return `<div class="type-btn${sel ? ' selected' : ''}" data-type="${type}">
       <div class="type-icon">${d.icon}</div>
-      <div class="type-label">${lang==='es'?d.es:d.en}</div>
-      <div class="type-sub">${lang==='es'?d.sub_es:d.sub_en}</div>
+      <div class="type-label">${lang === 'es' ? d.es : d.en}</div>
+      <div class="type-sub">${lang === 'es' ? d.sub_es : d.sub_en}</div>
     </div>`;
   }).join('');
 }
@@ -528,11 +593,12 @@ function onDriverSearch(val) {
   const exactMatch = allPeople.find(p => p.name.toLowerCase() === q);
   window._driverCandidates = [...matches];
   if (!exactMatch && val.trim().length >= 2) window._driverCandidates.push({ id: null, name: val.trim(), isNew: true });
-  drop.innerHTML = window._driverCandidates.map((p,i) => `
-    <div class="driver-opt" onclick="pickDriver(${i})">
-      <div class="driver-opt-name">${p.name}${p.isNew?`<span class="new-tag">${t('newTag')}</span>`:''}</div>
-      ${p.isNew?`<div class="driver-opt-sub">${lang==='es'?'Registrar nuevo conductor':'Register as new driver'}</div>`:''}
-    </div>`).join('') || `<div class="driver-opt" style="color:var(--gray);font-size:13px">${lang==='es'?'Sin resultados':'No results'}</div>`;
+  // Use data-idx attribute instead of inline onclick
+  drop.innerHTML = window._driverCandidates.map((p, i) => `
+    <div class="driver-opt" data-idx="${i}">
+      <div class="driver-opt-name">${p.name}${p.isNew ? `<span class="new-tag">${t('newTag')}</span>` : ''}</div>
+      ${p.isNew ? `<div class="driver-opt-sub">${lang === 'es' ? 'Registrar nuevo conductor' : 'Register as new driver'}</div>` : ''}
+    </div>`).join('') || `<div class="driver-opt" style="color:var(--gray);font-size:13px">${lang === 'es' ? 'Sin resultados' : 'No results'}</div>`;
   drop.classList.add('open');
   checkCanStart();
 }
@@ -555,13 +621,6 @@ function clearDriver() {
   checkCanStart();
 }
 
-document.addEventListener('mousedown', e => {
-  if (!e.target.closest('.driver-drop') && !e.target.closest('#driverInput'))
-    setTimeout(() => document.getElementById('driverDrop')?.classList.remove('open'), 150);
-  if (!e.target.closest('.asset-drop') && !e.target.closest('#assetSearchInput'))
-    setTimeout(() => document.getElementById('assetDrop')?.classList.remove('open'), 150);
-});
-
 function checkCanStart() {
   const ok = asset && inspType && selectedDriver;
   const btn = document.getElementById('startBtn');
@@ -569,9 +628,9 @@ function checkCanStart() {
   btn.disabled = !ok;
   if (!ok) {
     const missing = [];
-    if (!inspType) missing.push(lang==='es'?'tipo':'type');
-    if (!selectedDriver) missing.push(lang==='es'?'conductor':'driver');
-    btn.textContent = missing.length ? (lang==='es'?'Seleccione: ':'Select: ') + missing.join(' & ') : t('startBtn');
+    if (!inspType) missing.push(lang === 'es' ? 'tipo' : 'type');
+    if (!selectedDriver) missing.push(lang === 'es' ? 'conductor' : 'driver');
+    btn.textContent = missing.length ? (lang === 'es' ? 'Seleccione: ' : 'Select: ') + missing.join(' & ') : t('startBtn');
   } else {
     btn.textContent = t('startBtn');
   }
@@ -585,12 +644,12 @@ async function startInspection() {
     const r = await fetch(`${SUPA}/rest/v1/team_inspection_forms?team_id=eq.${asset.team_id}&inspection_type=eq.${inspType}&lang=eq.${lang}&is_active=eq.true&select=form_id&limit=1`, { headers: H });
     const data = await r.json();
     let formId = data?.[0]?.form_id;
-    if (!formId && lang==='es') {
+    if (!formId && lang === 'es') {
       const r2 = await fetch(`${SUPA}/rest/v1/team_inspection_forms?team_id=eq.${asset.team_id}&inspection_type=eq.${inspType}&lang=eq.en&is_active=eq.true&select=form_id&limit=1`, { headers: H });
       formId = (await r2.json())?.[0]?.form_id;
     }
     if (!formId) { showLoading(false); showError('setupError', 'No form found for this asset.'); return; }
-    const ri = await fetch(`${SUPA}/rest/v1/inspection_form_items?form_id=eq.${formId}&order=order_index`, { headers: H });
+    const ri = await fetch(`${SUPA}/rest/v1/inspection_form_items?form_id=eq.${formId}&is_active=eq.true&order=order_index`, { headers: H });
     formItems = await ri.json();
     responses = {};
     defectPhotos = {};
@@ -607,18 +666,18 @@ function renderChecklist() {
   if (!container) return;
   let html = '';
   formItems.forEach(item => {
-    if (item.item_type === 'signature') return; // replaced by certification
+    if (item.item_type === 'signature') return;
     const resp = responses[item.id] || {};
-    const label = (lang==='es' && item.title_es) ? item.title_es : item.title;
+    const label = (lang === 'es' && item.title_es) ? item.title_es : item.title;
     const hasFail = resp.value === 'fail';
 
     if (item.item_type === 'pass_fail') {
       html += `<div class="check-item" id="ci-${item.id}">
         <div class="check-row">
-          <div class="check-label${hasFail?' failed':''}">${label}</div>
+          <div class="check-label${hasFail ? ' failed' : ''}">${label}</div>
           <div class="pf-wrap">
-            <button class="pf-btn${resp.value==='pass'?' pass':''}" onclick="setResp('${item.id}','pass')">${t('pass')}</button>
-            <button class="pf-btn${hasFail?' fail':''}" onclick="setResp('${item.id}','fail')">${t('fail')}</button>
+            <button class="pf-btn${resp.value === 'pass' ? ' pass' : ''}" data-item-id="${item.id}" data-value="pass">${t('pass')}</button>
+            <button class="pf-btn${hasFail ? ' fail' : ''}" data-item-id="${item.id}" data-value="fail">${t('fail')}</button>
           </div>
         </div>
         ${hasFail ? renderDefectPanel(item, resp) : ''}
@@ -627,45 +686,42 @@ function renderChecklist() {
       html += `<div class="check-item" id="ci-${item.id}">
         <div class="check-row" style="flex-direction:column;align-items:flex-start">
           <div class="check-label">${label}</div>
-          <input type="number" class="check-number" placeholder="0" value="${resp.value||''}"
-            oninput="setResp('${item.id}',this.value)">
+          <input type="number" class="check-number" data-item-id="${item.id}" placeholder="0" value="${resp.value || ''}">
         </div>
       </div>`;
     } else if (item.item_type === 'text') {
       html += `<div class="check-item" id="ci-${item.id}">
         <div class="check-row" style="flex-direction:column;align-items:flex-start">
           <div class="check-label">${label}</div>
-          <textarea class="check-textarea" placeholder="${lang==='es'?'Notas...':'Notes...'}"
-            oninput="setResp('${item.id}',this.value)">${resp.value||''}</textarea>
+          <textarea class="check-textarea" data-item-id="${item.id}" placeholder="${lang === 'es' ? 'Notas...' : 'Notes...'}">${resp.value || ''}</textarea>
         </div>
       </div>`;
     }
   });
   container.innerHTML = html;
   updateProgress();
-  // Restore photo previews
   Object.keys(defectPhotos).forEach(itemId => renderPhotoPreviews(itemId));
 }
 
 function renderDefectPanel(item, resp) {
   const sev = resp.severity || '';
   const photos = defectPhotos[item.id] || [];
-  const thumbs = photos.map((p,i) => `
+  const thumbs = photos.map((p, i) => `
     <div class="photo-thumb">
       <img src="${p.previewUrl}" alt="">
-      <button class="photo-remove" onclick="removePhoto('${item.id}',${i})">×</button>
+      <button class="photo-remove" data-item-id="${item.id}" data-idx="${i}">×</button>
     </div>`).join('');
   return `<div class="defect-panel" id="dp-${item.id}">
     <div class="defect-panel-title">${t('defectLabel')}</div>
-    <textarea class="defect-textarea" placeholder="${t('defectLabel')}..." onchange="setDefectNote('${item.id}',this.value)">${resp.notes||''}</textarea>
+    <textarea class="defect-textarea" data-item-id="${item.id}" placeholder="${t('defectLabel')}...">${resp.notes || ''}</textarea>
     <div class="sev-row">
-      <button class="sev-btn minor${sev==='minor'?' sel':''}" onclick="setSev('${item.id}','minor')">${t('sev').minor}</button>
-      <button class="sev-btn major${sev==='major'?' sel':''}" onclick="setSev('${item.id}','major')">${t('sev').major}</button>
-      <button class="sev-btn critical${sev==='critical'?' sel':''}" onclick="setSev('${item.id}','critical')">${t('sev').critical}</button>
+      <button class="sev-btn minor${sev === 'minor' ? ' sel' : ''}" data-item-id="${item.id}" data-sev="minor">${t('sev').minor}</button>
+      <button class="sev-btn major${sev === 'major' ? ' sel' : ''}" data-item-id="${item.id}" data-sev="major">${t('sev').major}</button>
+      <button class="sev-btn critical${sev === 'critical' ? ' sel' : ''}" data-item-id="${item.id}" data-sev="critical">${t('sev').critical}</button>
     </div>
     <label class="photo-upload-btn">
       ${t('addPhoto')}
-      <input type="file" accept="image/*" capture="environment" multiple onchange="onPhotoSelected('${item.id}',this)">
+      <input type="file" class="photo-file-input" data-item-id="${item.id}" accept="image/*" capture="environment" multiple>
     </label>
     <div class="photo-preview-wrap" id="photos-${item.id}">${thumbs}</div>
     <div class="photo-uploading" id="photoStatus-${item.id}"></div>
@@ -680,14 +736,14 @@ function setResp(id, value) {
   renderChecklist();
 }
 
-function setDefectNote(id, val) { if (!responses[id]) responses[id]={}; responses[id].notes = val; }
-function setSev(id, sev) { if (!responses[id]) responses[id]={}; responses[id].severity = sev; renderChecklist(); }
+function setDefectNote(id, val) { if (!responses[id]) responses[id] = {}; responses[id].notes = val; }
+function setSev(id, sev) { if (!responses[id]) responses[id] = {}; responses[id].severity = sev; renderChecklist(); }
 
 function updateProgress() {
   const pfItems = formItems.filter(i => i.item_type === 'pass_fail');
   const answered = pfItems.filter(i => responses[i.id]?.value).length;
   const total = pfItems.length;
-  const pct = total ? Math.round(answered/total*100) : 0;
+  const pct = total ? Math.round(answered / total * 100) : 0;
   document.getElementById('progressFill').style.width = pct + '%';
   document.getElementById('progressLabel').textContent = `${answered} of ${total}`;
   document.getElementById('progressPct').textContent = pct + '%';
@@ -707,10 +763,10 @@ function renderPhotoPreviews(itemId) {
   const wrap = document.getElementById('photos-' + itemId);
   if (!wrap) return;
   const photos = defectPhotos[itemId] || [];
-  wrap.innerHTML = photos.map((p,i) => `
+  wrap.innerHTML = photos.map((p, i) => `
     <div class="photo-thumb">
       <img src="${p.previewUrl}" alt="">
-      <button class="photo-remove" onclick="removePhoto('${itemId}',${i})">×</button>
+      <button class="photo-remove" data-item-id="${itemId}" data-idx="${i}">×</button>
     </div>`).join('');
 }
 
@@ -728,7 +784,7 @@ async function uploadDefectPhotos(assetId) {
       const p = photos[i];
       if (p.uploaded) continue;
       const statusEl = document.getElementById('photoStatus-' + itemId);
-      if (statusEl) statusEl.textContent = `Uploading photo ${i+1} of ${photos.length}...`;
+      if (statusEl) statusEl.textContent = `Uploading photo ${i + 1} of ${photos.length}...`;
       try {
         const ext = p.file.name.split('.').pop().toLowerCase();
         const path = `${assetId}/${Date.now()}_defect_${Math.random().toString(36).slice(2)}.${ext}`;
@@ -754,49 +810,43 @@ function goBack() { showScreen('screenSetup'); }
 async function submitInspection() {
   showLoading(true, t('submitting'));
   try {
-    // 1. Upload any defect photos first
     await uploadDefectPhotos(asset.id);
 
-    // 2. Resolve/create driver
     let driverId = selectedDriver.id;
     if (selectedDriver.isNew) {
       const parts = selectedDriver.name.trim().split(/\s+/);
       const cr = await fetch(`${SUPA}/rest/v1/rpc/upsert_person`, {
         method: 'POST', headers: H,
-        body: JSON.stringify({ p_first_name: parts[0], p_last_name: parts.slice(1).join(' ')||'' })
+        body: JSON.stringify({ p_first_name: parts[0], p_last_name: parts.slice(1).join(' ') || '' })
       });
       driverId = await cr.json();
     }
 
-    // 3. Get form ID
     const tf = await fetch(`${SUPA}/rest/v1/team_inspection_forms?team_id=eq.${asset.team_id}&inspection_type=eq.${inspType}&lang=eq.${lang}&is_active=eq.true&select=form_id&limit=1`, { headers: H });
     const formId = (await tf.json())?.[0]?.form_id;
     if (!formId) throw new Error('No form found');
 
-    // 4. Build responses
     const respRows = formItems.filter(i => i.item_type !== 'signature').map(item => {
       const resp = responses[item.id] || {};
       return {
         form_item_id: item.id,
-        pass_fail_value: item.item_type==='pass_fail' ? (resp.value||null) : null,
-        number_value: item.item_type==='number' ? (resp.value ? parseFloat(resp.value) : null) : null,
-        text_value: item.item_type==='text' ? (resp.value||null) : null,
+        pass_fail_value: item.item_type === 'pass_fail' ? (resp.value || null) : null,
+        number_value: item.item_type === 'number' ? (resp.value ? parseFloat(resp.value) : null) : null,
+        text_value: item.item_type === 'text' ? (resp.value || null) : null,
         notes: resp.notes || null,
       };
     });
 
-    // 5. Build defects with photo paths
     const failures = formItems.filter(i => responses[i.id]?.value === 'fail');
     const defectRows = failures.map(item => {
-      const photos = (defectPhotos[item.id]||[]).filter(p => p.storagePath).map(p => p.storagePath);
+      const photos = (defectPhotos[item.id] || []).filter(p => p.storagePath).map(p => p.storagePath);
       return {
-        description: (lang==='es'&&item.title_es?item.title_es:item.title) + (responses[item.id].notes?': '+responses[item.id].notes:''),
+        description: (lang === 'es' && item.title_es ? item.title_es : item.title) + (responses[item.id].notes ? ': ' + responses[item.id].notes : ''),
         severity: responses[item.id].severity || 'minor',
         photo_paths: photos,
       };
     });
 
-    // 6. Call RPC — handles insert + defects + photo_paths in asset_photos
     const rpc = await fetch(`${SUPA}/rest/v1/rpc/submit_inspection_v2`, {
       method: 'POST', headers: H,
       body: JSON.stringify({
@@ -819,15 +869,13 @@ async function submitInspection() {
     document.getElementById('successSub').textContent = t('successSub');
     document.getElementById('newInspBtn').textContent = t('newInsp');
     if (failures.length) {
-      document.getElementById('successDefect').textContent = `${failures.length} defect${failures.length>1?'s':''} reported.`;
+      document.getElementById('successDefect').textContent = `${failures.length} defect${failures.length > 1 ? 's' : ''} reported.`;
     }
   } catch(e) {
     showLoading(false);
     alert('Submission failed:\n\n' + e.message);
   }
 }
-
-function hasFailures() { return formItems.some(i => responses[i.id]?.value === 'fail'); }
 
 function resetAll() {
   asset = null; teamRef = null; inspType = null; selectedDriver = null;
@@ -841,10 +889,10 @@ function resetAll() {
   init();
 }
 
-function showScreen(id) { document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
-function showLoading(show, msg) { const el=document.getElementById('loadingOverlay'); el.classList.toggle('show',show); if(msg) document.getElementById('loadingText').textContent=msg; }
-function showError(id, msg) { const el=document.getElementById(id); if(el){el.textContent=msg;el.classList.add('show');} }
-function clearError(id) { const el=document.getElementById(id); if(el){el.textContent='';el.classList.remove('show');} }
+function showScreen(id) { document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
+function showLoading(show, msg) { const el = document.getElementById('loadingOverlay'); el.classList.toggle('show', show); if (msg) document.getElementById('loadingText').textContent = msg; }
+function showError(id, msg) { const el = document.getElementById(id); if (el) { el.textContent = msg; el.classList.add('show'); } }
+function clearError(id) { const el = document.getElementById(id); if (el) { el.textContent = ''; el.classList.remove('show'); } }
 
 init();
 </script>
