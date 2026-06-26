@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -303,15 +304,15 @@ const T = {
 const t = k => T[lang][k] || T.en[k] || k;
 
 // ── Static event listeners (attached once on load) ─────────────────
-document.getElementById('langEn').addEventListener('click', () => setLang('en'));
-document.getElementById('langEs').addEventListener('click', () => setLang('es'));
-document.getElementById('langEn2').addEventListener('click', () => setLang('en'));
-document.getElementById('langEs2').addEventListener('click', () => setLang('es'));
-document.getElementById('backBtn').addEventListener('click', () => goBack());
-document.getElementById('startBtn').addEventListener('click', () => startInspection());
-document.getElementById('submitBtn').addEventListener('click', () => submitInspection());
-document.getElementById('newInspBtn').addEventListener('click', () => resetAll());
-document.getElementById('driverClearBtn').addEventListener('click', () => clearDriver());
+document.getElementById('langEn').addEventListener('click', e => { e.stopPropagation(); setLang('en'); });
+document.getElementById('langEs').addEventListener('click', e => { e.stopPropagation(); setLang('es'); });
+document.getElementById('langEn2').addEventListener('click', e => { e.stopPropagation(); setLang('en'); });
+document.getElementById('langEs2').addEventListener('click', e => { e.stopPropagation(); setLang('es'); });
+document.getElementById('backBtn').addEventListener('click', e => { e.stopPropagation(); goBack(); });
+document.getElementById('startBtn').addEventListener('click', e => { e.stopPropagation(); startInspection(); });
+document.getElementById('submitBtn').addEventListener('click', e => { e.stopPropagation(); submitInspection(); });
+document.getElementById('newInspBtn').addEventListener('click', e => { e.stopPropagation(); resetAll(); });
+document.getElementById('driverClearBtn').addEventListener('click', e => { e.stopPropagation(); clearDriver(); });
 document.getElementById('certCheck').addEventListener('change', () => onCertChange());
 
 const driverInput = document.getElementById('driverInput');
