@@ -367,13 +367,13 @@ document.addEventListener('click', e => {
 document.addEventListener('input', e => {
   const el = e.target;
 
-  // Number/text checklist inputs
+  // Number/text checklist inputs — skipRender=true to avoid jumping to top on each keystroke
   if (el.classList.contains('check-number') && el.dataset.itemId) {
-    setResp(el.dataset.itemId, el.value);
+    setResp(el.dataset.itemId, el.value, true);
     return;
   }
   if (el.classList.contains('check-textarea') && el.dataset.itemId) {
-    setResp(el.dataset.itemId, el.value);
+    setResp(el.dataset.itemId, el.value, true);
     return;
   }
 
@@ -728,12 +728,12 @@ function renderDefectPanel(item, resp) {
   </div>`;
 }
 
-function setResp(id, value) {
+function setResp(id, value, skipRender) {
   if (!responses[id]) responses[id] = {};
   responses[id].value = value;
   if (value === 'fail' && !responses[id].severity) responses[id].severity = 'minor';
   updateProgress();
-  renderChecklist();
+  if (!skipRender) renderChecklist();
 }
 
 function setDefectNote(id, val) { if (!responses[id]) responses[id] = {}; responses[id].notes = val; }
