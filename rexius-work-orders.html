@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -80,7 +79,8 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
 
 .content { flex: 1; padding: 20px; overflow-y: auto; }
 
-.stat-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 18px; }
+.stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 18px; }
+.stat-row:empty { display: none; margin: 0; }
 .stat { background: var(--paper); border: 1px solid var(--border); padding: 14px 16px; position: relative; }
 .stat::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--border); }
 .stat.urgent::before { background: var(--red); }
@@ -90,6 +90,15 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
 .stat.done::before { background: var(--green); }
 .stat-n { font-family: var(--display); font-size: 32px; font-weight: 700; line-height: 1; }
 .stat-l { font-family: var(--mono); font-size: 10px; font-weight: 500; letter-spacing: .1em; text-transform: uppercase; color: var(--gray); margin-top: 3px; }
+
+/* Stat visibility toggle panel */
+.stat-toggle-wrap { position: relative; }
+.stat-toggle-panel { position: absolute; top: 100%; right: 0; margin-top: 6px; background: var(--paper); border: 1px solid var(--border); box-shadow: 0 4px 14px rgba(0,0,0,.12); padding: 8px; z-index: 200; min-width: 180px; display: none; }
+.stat-toggle-panel.open { display: block; }
+.stat-toggle-panel .stp-title { font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--gray); padding: 4px 6px 8px; }
+.stp-item { display: flex; align-items: center; gap: 8px; padding: 6px; font-size: 13px; cursor: pointer; user-select: none; }
+.stp-item:hover { background: var(--surface); }
+.stp-item input { cursor: pointer; }
 
 .kanban { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
 .lane { background: var(--surface); border: 1px solid var(--border); }
@@ -149,6 +158,26 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
 .modal-label { font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--gray); margin-bottom: 5px; }
 .modal-value { font-size: 14px; color: var(--ink); line-height: 1.5; }
 .modal-notes { font-size: 13px; color: #444; line-height: 1.6; background: var(--surface); padding: 10px 12px; border-left: 3px solid var(--green); white-space: pre-wrap; }
+.assign-history { display: flex; flex-direction: column; gap: 4px; max-height: 160px; overflow-y: auto; }
+.assign-row { display: flex; align-items: baseline; gap: 8px; font-size: 12px; padding: 6px 10px; background: var(--surface); border-left: 2px solid var(--border); }
+.assign-row:first-child { border-left-color: var(--green); }
+.assign-mech { font-weight: 600; color: var(--ink); }
+.assign-by { color: var(--gray); font-family: var(--mono); font-size: 11px; }
+.assign-at { margin-left: auto; color: var(--gray); font-family: var(--mono); font-size: 11px; white-space: nowrap; }
+.assign-empty { font-size: 12px; color: var(--gray); padding: 6px 0; }
+
+.upd-list { display: flex; flex-direction: column; gap: 6px; max-height: 240px; overflow-y: auto; margin-top: 8px; }
+.upd-row { background: var(--surface); border-left: 2px solid var(--border); padding: 8px 10px; }
+.upd-head { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; }
+.upd-by { font-family: var(--mono); font-size: 11px; color: var(--gray); }
+.upd-at { margin-left: auto; font-family: var(--mono); font-size: 11px; color: var(--gray); white-space: nowrap; }
+.upd-text { font-size: 13px; color: #333; line-height: 1.4; white-space: pre-wrap; }
+.upd-type { font-family: var(--mono); font-size: 9px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; padding: 2px 6px; }
+.upd-type-note     { background: var(--surface); color: var(--gray); border: 1px solid var(--border); }
+.upd-type-status   { background: var(--blue-light); color: var(--blue); }
+.upd-type-parts    { background: var(--amber-light); color: var(--amber); }
+.upd-type-customer { background: var(--green-light); color: var(--green); }
+.upd-type-other    { background: var(--surface); color: var(--ink); border: 1px solid var(--border); }
 .modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .modal-footer { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; background: var(--surface); }
 .m-btn { font-family: var(--mono); font-size: 11px; font-weight: 500; padding: 8px 16px; border: 1px solid var(--border); background: var(--paper); color: #444; cursor: pointer; transition: all .12s; }
@@ -232,6 +261,17 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
       <option value="unassigned">Unassigned</option>
     </select>
     <div class="tb-sep"></div>
+    <div class="stat-toggle-wrap">
+      <button class="tb-btn" id="statToggleBtn" title="Show/hide summary tiles">▣ Tiles</button>
+      <div class="stat-toggle-panel" id="statTogglePanel">
+        <div class="stp-title">Show summary tiles</div>
+        <label class="stp-item"><input type="checkbox" data-stat="urgent"> Urgent</label>
+        <label class="stp-item"><input type="checkbox" data-stat="high"> High Priority</label>
+        <label class="stp-item"><input type="checkbox" data-stat="open"> Open</label>
+        <label class="stp-item"><input type="checkbox" data-stat="inprog"> In Progress</label>
+        <label class="stp-item"><input type="checkbox" data-stat="unass"> Unassigned</label>
+      </div>
+    </div>
     <button class="tb-btn primary" id="newWOBtn">+ New Work Order</button>
   </div>
 
@@ -341,6 +381,19 @@ let allPeople   = [];
 let allShops    = [];
 let selectedWO  = null;
 
+// Which summary tiles are visible (persisted). Default: all on.
+const STAT_KEYS = ['urgent','high','open','inprog','unass'];
+let statVisible = (() => {
+  try {
+    const saved = JSON.parse(localStorage.getItem('rexius_wo_stats'));
+    if (saved && typeof saved === 'object') return saved;
+  } catch(e) {}
+  return { urgent: true, high: true, open: true, inprog: true, unass: true };
+})();
+function saveStatVisible() {
+  try { localStorage.setItem('rexius_wo_stats', JSON.stringify(statVisible)); } catch(e) {}
+}
+
 // ── Static event listeners ─────────────────────────────────────────
 document.getElementById('loginBtn').addEventListener('click', () => doLogin());
 document.getElementById('loginPass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
@@ -355,6 +408,24 @@ document.getElementById('detailCancelBtn').addEventListener('click', () => cance
 document.getElementById('detailProgressBtn').addEventListener('click', () => advanceStatus());
 document.getElementById('saveNewWOBtn').addEventListener('click', () => saveNewWO());
 document.getElementById('woAssetSearch').addEventListener('input', e => searchAssets(e.target.value));
+
+// Stat-tile visibility toggles
+(function setupStatToggles() {
+  const panel = document.getElementById('statTogglePanel');
+  // Reflect current state into the checkboxes
+  panel.querySelectorAll('input[data-stat]').forEach(cb => {
+    cb.checked = !!statVisible[cb.dataset.stat];
+    cb.addEventListener('change', () => {
+      statVisible[cb.dataset.stat] = cb.checked;
+      saveStatVisible();
+      render();
+    });
+  });
+  document.getElementById('statToggleBtn').addEventListener('click', e => {
+    e.stopPropagation();
+    panel.classList.toggle('open');
+  });
+})();
 
 // Restore today's session on load (keeps user logged in for the day)
 tryRestoreSession();
@@ -393,6 +464,11 @@ document.addEventListener('click', e => {
   if (!e.target.closest('#woAssetSearch') && !e.target.closest('#assetDropdown')) {
     document.getElementById('assetDropdown').style.display = 'none';
   }
+
+  // Close stat toggle panel on outside click
+  if (!e.target.closest('.stat-toggle-wrap')) {
+    document.getElementById('statTogglePanel').classList.remove('open');
+  }
 });
 
 // ── Login ──────────────────────────────────────────────────────────
@@ -407,6 +483,7 @@ function enterApp(name) {
   document.getElementById('topUser').textContent = name;
   document.getElementById('woDate').value = todayStr();
   loadData();
+  startAutoRefresh();
 }
 
 function doLogin() {
@@ -416,19 +493,17 @@ function doLogin() {
   if (!name) { err.textContent = 'Please enter your name.'; err.classList.add('show'); return; }
   if (pass !== PASSWORD) { err.textContent = 'Incorrect password.'; err.classList.add('show'); return; }
   err.classList.remove('show');
-  try { localStorage.setItem(SESSION_KEY, JSON.stringify({ user: name, date: todayStr() })); } catch(e) {}
+  try { localStorage.setItem(SESSION_KEY, JSON.stringify({ user: name })); } catch(e) {}
   rpc('log_access', { p_tool_name: 'work-orders', p_user_name: name, p_action: 'login' });
   enterApp(name);
 }
 
-// Restore an existing session if it was created today (auto-expires next calendar day)
+// Restore an existing session (persists until explicit sign out — shop-screen friendly)
 function tryRestoreSession() {
   let saved;
   try { saved = JSON.parse(localStorage.getItem(SESSION_KEY)); } catch(e) { saved = null; }
-  if (saved && saved.user && saved.date === todayStr()) {
+  if (saved && saved.user) {
     enterApp(saved.user);
-  } else if (saved) {
-    try { localStorage.removeItem(SESSION_KEY); } catch(e) {}
   }
 }
 
@@ -444,20 +519,53 @@ async function rpc(fn, body) {
   return r.json();
 }
 
-async function loadData() {
-  showSpinner();
+async function loadData(silent = false) {
+  if (!silent) showSpinner();
   try {
+    // Preserve current filter/search selections across a silent refresh
+    const prev = silent ? {
+      region: document.getElementById('filterRegion').value,
+      shop:   document.getElementById('filterShop').value,
+      mech:   document.getElementById('filterMech').value,
+      pri:    document.getElementById('filterPri').value,
+    } : null;
+
     const data = await rpc('get_work_order_portal_data', {});
     allWOs    = data.work_orders || [];
     allPeople = data.mechanics   || [];
     allAssets = data.assets      || [];
     allShops  = data.shops       || [];
     populateFilters();
+
+    if (prev) {
+      // Restore selections if they still exist as options
+      const restore = (id, val) => {
+        const el = document.getElementById(id);
+        if ([...el.options].some(o => o.value === val)) el.value = val;
+      };
+      restore('filterRegion', prev.region);
+      restore('filterShop',   prev.shop);
+      restore('filterMech',   prev.mech);
+      restore('filterPri',    prev.pri);
+    }
     render();
   } catch(e) {
     console.error(e);
-    document.getElementById('content').innerHTML = '<div class="empty"><div class="empty-icon">⚠</div><p>Failed to load data</p></div>';
+    if (!silent) document.getElementById('content').innerHTML = '<div class="empty"><div class="empty-icon">⚠</div><p>Failed to load data</p></div>';
   }
+}
+
+// ── Auto-refresh (shop job board) ──────────────────────────────────
+let refreshTimer = null;
+function isModalOpen() {
+  return document.querySelector('.modal-overlay.open') !== null;
+}
+function startAutoRefresh() {
+  if (refreshTimer) clearInterval(refreshTimer);
+  refreshTimer = setInterval(() => {
+    // Don't repaint while a modal is open (someone is mid-action)
+    if (!isModalOpen()) loadData(true);
+  }, 30000);
 }
 
 function populateFilters() {
@@ -516,13 +624,14 @@ function render() {
   const high   = wos.filter(w => w.priority === 'high'   && w.status !== 'completed').length;
   const unass  = wos.filter(w => !w.mechanic_id           && w.status !== 'completed').length;
 
-  const statsHtml = `<div class="stat-row">
-    <div class="stat urgent"><div class="stat-n" style="color:var(--red)">${urgent}</div><div class="stat-l">Urgent</div></div>
-    <div class="stat high"><div class="stat-n" style="color:#ea580c">${high}</div><div class="stat-l">High Priority</div></div>
-    <div class="stat normal"><div class="stat-n" style="color:var(--amber)">${open.length}</div><div class="stat-l">Open</div></div>
-    <div class="stat low"><div class="stat-n" style="color:var(--blue)">${inprog.length}</div><div class="stat-l">In Progress</div></div>
-    <div class="stat done"><div class="stat-n" style="color:var(--green)">${unass}</div><div class="stat-l">Unassigned</div></div>
-  </div>`;
+  const tiles = {
+    urgent: `<div class="stat urgent"><div class="stat-n" style="color:var(--red)">${urgent}</div><div class="stat-l">Urgent</div></div>`,
+    high:   `<div class="stat high"><div class="stat-n" style="color:#ea580c">${high}</div><div class="stat-l">High Priority</div></div>`,
+    open:   `<div class="stat normal"><div class="stat-n" style="color:var(--amber)">${open.length}</div><div class="stat-l">Open</div></div>`,
+    inprog: `<div class="stat low"><div class="stat-n" style="color:var(--blue)">${inprog.length}</div><div class="stat-l">In Progress</div></div>`,
+    unass:  `<div class="stat done"><div class="stat-n" style="color:var(--green)">${unass}</div><div class="stat-l">Unassigned</div></div>`,
+  };
+  const statsHtml = `<div class="stat-row">${STAT_KEYS.filter(k => statVisible[k]).map(k => tiles[k]).join('')}</div>`;
 
   if (currentTab === 'board') renderBoard(statsHtml, open, inprog, done);
   else if (currentTab === 'list') renderTable(statsHtml, wos);
@@ -601,17 +710,78 @@ function openDetail(id) {
   document.getElementById('detailAsset').textContent = [w.asset_number, w.year, w.make, w.model].filter(Boolean).join(' · ');
 
   const cost = w.total_parts_cost ? `$${parseFloat(w.total_parts_cost).toLocaleString()}` : '—';
+
+  const mechOptions = '<option value="">Unassigned</option>' +
+    allPeople.map(p => `<option value="${p.id}" ${p.id === w.mechanic_id ? 'selected' : ''}>${p.name}</option>`).join('');
+
+  const history = (w.assignments && w.assignments.length)
+    ? w.assignments.map(a => `
+        <div class="assign-row">
+          <span class="assign-mech">${a.mechanic || 'Unassigned'}</span>
+          <span class="assign-by">by ${a.assigned_by || '—'}</span>
+          <span class="assign-at">${fmtDateTime(a.assigned_at)}</span>
+        </div>`).join('')
+    : '<div class="assign-empty">No assignment history yet.</div>';
+
+  const updates = (w.updates && w.updates.length)
+    ? w.updates.map(u => `
+        <div class="upd-row">
+          <div class="upd-head">
+            <span class="upd-type upd-type-${(u.type||'Note').toLowerCase()}">${u.type || 'Note'}</span>
+            <span class="upd-by">${esc(u.by) || '—'}</span>
+            <span class="upd-at">${fmtDateTime(u.at)}</span>
+          </div>
+          <div class="upd-text">${esc(u.text)}</div>
+        </div>`).join('')
+    : '<div class="assign-empty">No updates yet.</div>';
+
   document.getElementById('detailBody').innerHTML = `
     <div class="modal-grid">
       <div class="modal-section"><div class="modal-label">Status</div><div class="modal-value"><span class="st st-${w.status}">${w.status.replace('_', ' ')}</span></div></div>
       <div class="modal-section"><div class="modal-label">Priority</div><div class="modal-value">${w.priority ? `<span class="pri pri-${w.priority}">${w.priority}</span>` : '—'}</div></div>
       <div class="modal-section"><div class="modal-label">Group</div><div class="modal-value">${w.team || '—'}</div></div>
       <div class="modal-section"><div class="modal-label">Shop</div><div class="modal-value">${w.shop ? `${w.shop}${w.region ? ` · ${w.region}` : ''}` : '—'}</div></div>
-      <div class="modal-section"><div class="modal-label">Assigned To</div><div class="modal-value">${w.mechanic || 'Unassigned'}</div></div>
+      <div class="modal-section"><div class="modal-label">Currently Assigned</div><div class="modal-value">${w.mechanic || 'Unassigned'}</div></div>
       <div class="modal-section"><div class="modal-label">Date Opened</div><div class="modal-value">${fmtDate(w.date_opened)}</div></div>
       <div class="modal-section"><div class="modal-label">Parts Cost Est.</div><div class="modal-value">${cost}</div></div>
     </div>
-    ${w.notes ? `<div class="modal-section"><div class="modal-label">Notes</div><div class="modal-notes">${w.notes}</div></div>` : ''}`;
+
+    <div class="modal-section" style="margin-top:14px">
+      <div class="modal-label">Assign / Reassign</div>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:4px">
+        <select class="form-select" id="assignMech" style="flex:1">${mechOptions}</select>
+        <button class="m-btn primary" id="assignBtn" style="white-space:nowrap">Assign</button>
+      </div>
+      <div style="font-size:11px;color:var(--gray);margin-top:4px">Assignment will be recorded as <strong>${currentUser}</strong> at the current time.</div>
+    </div>
+
+    <div class="modal-section" style="margin-top:14px">
+      <div class="modal-label">Assignment History</div>
+      <div class="assign-history">${history}</div>
+    </div>
+
+    <div class="modal-section" style="margin-top:14px">
+      <div class="modal-label">Updates</div>
+      <div style="display:flex;gap:8px;align-items:flex-start;margin-top:4px">
+        <textarea class="form-textarea" id="updText" placeholder="Add a progress update..." style="flex:1;min-height:54px"></textarea>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <select class="form-select" id="updType" style="width:120px">
+            <option value="Note">Note</option>
+            <option value="Status">Status</option>
+            <option value="Parts">Parts</option>
+            <option value="Customer">Customer</option>
+            <option value="Other">Other</option>
+          </select>
+          <button class="m-btn primary" id="updBtn">Add Update</button>
+        </div>
+      </div>
+      <div class="upd-list">${updates}</div>
+    </div>
+
+    ${w.notes ? `<div class="modal-section" style="margin-top:14px"><div class="modal-label">Notes</div><div class="modal-notes">${w.notes}</div></div>` : ''}`;
+
+  document.getElementById('assignBtn').addEventListener('click', () => assignMechanic());
+  document.getElementById('updBtn').addEventListener('click', () => addUpdate());
 
   const pb = document.getElementById('detailProgressBtn');
   if (w.status === 'open')             { pb.textContent = 'Mark In Progress'; pb.style.display = ''; }
@@ -630,6 +800,48 @@ async function advanceStatus() {
   showToast(`Work order marked ${nextStatus.replace('_', ' ')}`);
   rpc('log_access', { p_tool_name: 'work-orders', p_user_name: currentUser, p_action: 'status_change', p_metadata: { wo_id: selectedWO.id, status: nextStatus } });
   loadData();
+}
+
+async function assignMechanic() {
+  if (!selectedWO) return;
+  const mechId = document.getElementById('assignMech').value;
+  const result = await rpc('assign_work_order', {
+    p_wo_id:       selectedWO.id,
+    p_mechanic_id: mechId || null,
+    p_assigned_by: currentUser,
+  });
+  if (result?.success) {
+    const name = mechId ? (allPeople.find(p => p.id === mechId)?.name || 'mechanic') : 'Unassigned';
+    showToast(mechId ? `Assigned to ${name}` : 'Work order unassigned');
+    rpc('log_access', { p_tool_name: 'work-orders', p_user_name: currentUser, p_action: 'assign_wo', p_metadata: { wo_id: selectedWO.id, mechanic_id: mechId || null } });
+    closeModal('detailModal');
+    loadData();
+  } else {
+    showToast('Failed to assign: ' + JSON.stringify(result));
+  }
+}
+
+async function addUpdate() {
+  if (!selectedWO) return;
+  const text = document.getElementById('updText').value.trim();
+  const type = document.getElementById('updType').value;
+  if (!text) { showToast('Enter an update first'); return; }
+  const woId = selectedWO.id;
+  const result = await rpc('add_work_order_update', {
+    p_wo_id:      woId,
+    p_text:       text,
+    p_created_by: currentUser,
+    p_type:       type,
+  });
+  if (result?.success) {
+    showToast('Update added');
+    rpc('log_access', { p_tool_name: 'work-orders', p_user_name: currentUser, p_action: 'add_update', p_metadata: { wo_id: woId, type } });
+    // Refresh data, then reopen this WO so the new update is visible immediately
+    await loadData(true);
+    openDetail(woId);
+  } else {
+    showToast('Failed to add update: ' + JSON.stringify(result));
+  }
 }
 
 async function cancelWO() {
@@ -734,6 +946,16 @@ function fmtDate(d) {
   return new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+function fmtDateTime(d) {
+  if (!d) return '—';
+  return new Date(d).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+
+function esc(s) {
+  if (s == null) return '';
+  return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+}
+
 function showToast(msg) {
   const t = document.getElementById('toast');
   t.textContent = msg;
@@ -747,3 +969,4 @@ function showSpinner() {
 </script>
 </body>
 </html>
+
