@@ -28,7 +28,6 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: var(--sans); background: var(--bg); color: var(--text); min-height: 100vh; }
 
-/* HEADER */
 .header {
   border-bottom: 1px solid var(--border);
   padding: 16px 24px;
@@ -47,7 +46,6 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); min-
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
 .header-right { display: flex; align-items: center; gap: 10px; }
 
-/* CONTROLS BAR */
 .controls {
   padding: 12px 24px;
   border-bottom: 1px solid var(--border);
@@ -82,14 +80,8 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); min-
 .filter-btn:hover { border-color: var(--green); color: var(--green); }
 .filter-btn.active { background: var(--green-dim); border-color: var(--green); color: var(--green); }
 .divider { width: 1px; height: 24px; background: var(--border); }
-.count-badge {
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--text-muted);
-  margin-left: auto;
-}
+.count-badge { font-family: var(--mono); font-size: 11px; color: var(--text-muted); margin-left: auto; }
 
-/* ACTION BUTTONS */
 .btn {
   font-family: var(--mono);
   font-size: 12px;
@@ -109,10 +101,8 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); min-
 .btn-amber:hover { background: rgba(245,158,11,0.1); }
 .btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
-/* MAIN LAYOUT */
 .main { display: flex; height: calc(100vh - 97px); overflow: hidden; }
 
-/* ASSET PANEL */
 .asset-panel {
   width: 320px;
   flex-shrink: 0;
@@ -162,7 +152,6 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); min-
 .status-in { background: var(--green); }
 .status-out { background: var(--red); }
 
-/* QR PREVIEW PANEL */
 .preview-panel {
   flex: 1;
   overflow-y: auto;
@@ -190,7 +179,6 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); min-
 }
 .preview-title { font-family: var(--mono); font-size: 13px; color: var(--text-dim); }
 
-/* QR GRID */
 .qr-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
@@ -236,7 +224,6 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); min-
 }
 .qr-dl-btn:hover { border-color: var(--green); color: var(--green); }
 
-/* PRINT SHEET */
 .print-sheet { display: none; }
 
 @media print {
@@ -265,22 +252,10 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); min-
     page-break-inside: avoid;
   }
   .print-cell canvas { width: 1.4in !important; height: 1.4in !important; }
-  .print-label {
-    font-family: monospace;
-    font-size: 9pt;
-    font-weight: bold;
-    text-align: center;
-  }
-  .print-url {
-    font-family: monospace;
-    font-size: 6pt;
-    color: #666;
-    text-align: center;
-    word-break: break-all;
-  }
+  .print-label { font-family: monospace; font-size: 9pt; font-weight: bold; text-align: center; }
+  .print-url { font-family: monospace; font-size: 6pt; color: #666; text-align: center; word-break: break-all; }
 }
 
-/* URL CONFIG */
 .url-config {
   padding: 10px 24px;
   border-bottom: 1px solid var(--border);
@@ -303,7 +278,6 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); min-
 }
 .url-input:focus { outline: none; border-color: var(--green); }
 
-/* LOADING */
 .loading {
   display: flex;
   align-items: center;
@@ -324,7 +298,6 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); min-
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* TOAST */
 .toast {
   position: fixed;
   bottom: 24px;
@@ -354,43 +327,40 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); min-
     <div class="status-dot" id="statusDot" style="background:var(--amber)"></div>
   </div>
   <div class="header-right">
-    <button class="btn btn-outline" onclick="selectAll()">Select All</button>
-    <button class="btn btn-outline" onclick="clearSelection()">Clear</button>
-    <button class="btn btn-amber" onclick="printSelected()" id="printBtn" disabled>Print Sheet</button>
-    <button class="btn btn-primary" onclick="downloadZip()" id="zipBtn" disabled>↓ Download ZIP</button>
+    <button class="btn btn-outline" id="selectAllBtn">Select All</button>
+    <button class="btn btn-outline" id="clearBtn">Clear</button>
+    <button class="btn btn-amber" id="printBtn" disabled>Print Sheet</button>
+    <button class="btn btn-primary" id="zipBtn" disabled>↓ Download ZIP</button>
   </div>
 </div>
 
 <!-- URL CONFIG -->
 <div class="url-config">
   <span class="url-label">Base URL:</span>
-  <input class="url-input" id="baseUrl" value=""https://cylverfox.github.io/rexius-tools/rexius-inspection.html?asset=" oninput="regenerateVisible()">
+  <input class="url-input" id="baseUrl" value="https://rexiusfleet.github.io/rexius-tools/rexius-inspection.html?asset=">
   <span class="url-label" style="color:var(--text-muted);font-size:10px">QR encodes: {base_url}{asset_number}</span>
 </div>
 
 <!-- CONTROLS -->
 <div class="controls">
-  <input class="search-box" id="searchBox" placeholder="Search asset..." oninput="filterAssets()">
+  <input class="search-box" id="searchBox" placeholder="Search asset...">
   <div class="divider"></div>
-  <button class="filter-btn active" data-team="all" onclick="setTeamFilter('all')">All</button>
-  <button class="filter-btn" data-team="team_g" onclick="setTeamFilter('team_g')">G Group</button>
-  <button class="filter-btn" data-team="team_m" onclick="setTeamFilter('team_m')">M Group</button>
-  <button class="filter-btn" data-team="team_c" onclick="setTeamFilter('team_c')">C Group</button>
-  <button class="filter-btn" data-team="team_b" onclick="setTeamFilter('team_b')">B Group</button>
-  <button class="filter-btn" data-team="team_l" onclick="setTeamFilter('team_l')">L Group</button>
-  <button class="filter-btn" data-team="team_equipment" onclick="setTeamFilter('team_equipment')">Equipment</button>
-  <button class="filter-btn" data-team="team_rexius" onclick="setTeamFilter('team_rexius')">Rexius</button>
+  <button class="filter-btn active" data-team="all">All</button>
+  <button class="filter-btn" data-team="team_g">G Group</button>
+  <button class="filter-btn" data-team="team_m">M Group</button>
+  <button class="filter-btn" data-team="team_c">C Group</button>
+  <button class="filter-btn" data-team="team_b">B Group</button>
+  <button class="filter-btn" data-team="team_l">L Group</button>
+  <button class="filter-btn" data-team="team_equipment">Equipment</button>
+  <button class="filter-btn" data-team="team_rexius">Rexius</button>
   <span class="count-badge" id="countBadge">Loading...</span>
 </div>
 
 <!-- MAIN -->
 <div class="main">
-  <!-- ASSET LIST -->
   <div class="asset-panel" id="assetPanel">
     <div class="loading"><div class="spinner"></div>Loading assets...</div>
   </div>
-
-  <!-- QR PREVIEW -->
   <div class="preview-panel" id="previewPanel">
     <div class="preview-empty">
       <div class="preview-empty-icon">⬛</div>
@@ -399,7 +369,7 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); min-
   </div>
 </div>
 
-<!-- PRINT SHEET (hidden, shown on print) -->
+<!-- PRINT SHEET -->
 <div class="print-sheet" id="printSheet"></div>
 
 <!-- TOAST -->
@@ -407,16 +377,61 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); min-
 
 <script>
 const SUPA = 'https://toduddkyttuablausist.supabase.co';
-const KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRvZHVkZGt5dHR1YWJsYXVzaXN0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NjY5MTEsImV4cCI6MjA5NjI0MjkxMX0.ZdtMIuc9kEo7-x0Lr-y2--F1aqkurbLJ0YxeQD2ggDQ'; // Replace: Supabase dashboard → Settings → API → anon public
+const KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRvZHVkZGt5dHR1YWJsYXVzaXN0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NjY5MTEsImV4cCI6MjA5NjI0MjkxMX0.ZdtMIuc9kEo7-x0Lr-y2--F1aqkurbLJ0YxeQD2ggDQ';
 const HDRS = { apikey: KEY, Authorization: `Bearer ${KEY}` };
 
 let allAssets = [];
 let selected = new Set();
 let teamFilter = 'all';
 let searchQuery = '';
-let qrCache = {};
 
-// Load assets
+// ── Static event listeners ─────────────────────────────────────────
+document.getElementById('selectAllBtn').addEventListener('click', () => selectAll());
+document.getElementById('clearBtn').addEventListener('click', () => clearSelection());
+document.getElementById('printBtn').addEventListener('click', () => printSelected());
+document.getElementById('zipBtn').addEventListener('click', () => downloadZip());
+document.getElementById('searchBox').addEventListener('input', () => {
+  searchQuery = document.getElementById('searchBox').value;
+  renderAssetList();
+});
+document.getElementById('baseUrl').addEventListener('input', () => regenerateVisible());
+
+// ── Event delegation ───────────────────────────────────────────────
+document.addEventListener('click', e => {
+  // Filter buttons
+  const filterBtn = e.target.closest('.filter-btn');
+  if (filterBtn && filterBtn.dataset.team) {
+    setTeamFilter(filterBtn.dataset.team);
+    return;
+  }
+
+  // Asset rows
+  const assetRow = e.target.closest('.asset-row[data-id]');
+  if (assetRow) {
+    toggleAsset(assetRow.dataset.id);
+    return;
+  }
+
+  // Team header toggle
+  const teamHeader = e.target.closest('.team-header[data-team]');
+  if (teamHeader) {
+    toggleTeam(teamHeader.dataset.team);
+    return;
+  }
+
+  // Download single QR button
+  const dlBtn = e.target.closest('.qr-dl-btn[data-id]');
+  if (dlBtn) {
+    downloadSingle(dlBtn.dataset.id, dlBtn.dataset.num);
+    return;
+  }
+
+  // Preview panel print/download buttons
+  if (e.target.id === 'previewPrintBtn') { printSelected(); return; }
+  if (e.target.id === 'previewZipBtn') { downloadZip(); return; }
+});
+
+// ── Data ───────────────────────────────────────────────────────────
 async function loadAssets() {
   try {
     const r = await fetch(`${SUPA}/rest/v1/assets?select=id,asset_number,make,model,year,status,team_id,teams(name,import_ref)&deleted_at=is.null&order=asset_number`, { headers: HDRS });
@@ -449,16 +464,10 @@ function setTeamFilter(team) {
   renderAssetList();
 }
 
-function filterAssets() {
-  searchQuery = document.getElementById('searchBox').value;
-  renderAssetList();
-}
-
 function renderAssetList() {
   const filtered = getFilteredAssets();
   document.getElementById('countBadge').textContent = `${filtered.length} assets · ${selected.size} selected`;
 
-  // Group by team
   const groups = {};
   filtered.forEach(a => {
     const key = getTeamRef(a);
@@ -470,18 +479,22 @@ function renderAssetList() {
   let html = '';
   Object.entries(groups).sort((a,b) => a[1].name.localeCompare(b[1].name)).forEach(([key, g]) => {
     html += `<div class="team-group">
-      <div class="team-header" onclick="toggleTeam('${key}')">
+      <div class="team-header" data-team="${key}">
         <span>${g.name.toUpperCase()}</span>
         <span class="team-count">${g.assets.length}</span>
       </div>
       <div id="tg-${key}">`;
     g.assets.forEach(a => {
       const sel = selected.has(a.id);
-      html += `<div class="asset-row ${sel?'selected':''}" onclick="toggleAsset('${a.id}')">
-        <div class="asset-cb"><svg class="asset-cb-check" viewBox="0 0 8 8" fill="none"><path d="M1 4l2.5 2.5L7 1.5" stroke="#000" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+      html += `<div class="asset-row${sel ? ' selected' : ''}" data-id="${a.id}">
+        <div class="asset-cb">
+          <svg class="asset-cb-check" viewBox="0 0 8 8" fill="none">
+            <path d="M1 4l2.5 2.5L7 1.5" stroke="#000" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </div>
         <span class="asset-num">${a.asset_number}</span>
         <span class="asset-desc">${assetDesc(a)}</span>
-        <div class="asset-status ${a.status==='in_service'?'status-in':'status-out'}"></div>
+        <div class="asset-status ${a.status === 'in_service' ? 'status-in' : 'status-out'}"></div>
       </div>`;
     });
     html += '</div></div>';
@@ -493,7 +506,7 @@ function renderAssetList() {
 
 function toggleTeam(key) {
   const el = document.getElementById('tg-' + key);
-  el.style.display = el.style.display === 'none' ? '' : 'none';
+  if (el) el.style.display = el.style.display === 'none' ? '' : 'none';
 }
 
 function toggleAsset(id) {
@@ -521,12 +534,12 @@ function updateButtons() {
   document.getElementById('countBadge').textContent = `${getFilteredAssets().length} assets · ${n} selected`;
 }
 
-// QR Generation
+// ── QR Generation ──────────────────────────────────────────────────
 function getUrl(assetNumber) {
   return document.getElementById('baseUrl').value + encodeURIComponent(assetNumber);
 }
 
-function generateQR(container, url, size=120) {
+function generateQR(container, url, size = 120) {
   container.innerHTML = '';
   new QRCode(container, {
     text: url,
@@ -550,10 +563,10 @@ function renderQRs() {
 
   const selectedAssets = allAssets.filter(a => selected.has(a.id));
   panel.innerHTML = `<div class="preview-header">
-    <span class="preview-title">${selected.size} QR code${selected.size!==1?'s':''} generated</span>
+    <span class="preview-title">${selected.size} QR code${selected.size !== 1 ? 's' : ''} generated</span>
     <div style="display:flex;gap:8px">
-      <button class="btn btn-outline" onclick="printSelected()">Print Sheet</button>
-      <button class="btn btn-primary" onclick="downloadZip()">↓ Download ZIP</button>
+      <button class="btn btn-outline" id="previewPrintBtn">Print Sheet</button>
+      <button class="btn btn-primary" id="previewZipBtn">↓ Download ZIP</button>
     </div>
   </div>
   <div class="qr-grid" id="qrGrid"></div>`;
@@ -561,16 +574,13 @@ function renderQRs() {
   const grid = document.getElementById('qrGrid');
   selectedAssets.forEach(a => {
     const url = getUrl(a.asset_number);
+    const desc = assetDesc(a);
     const card = document.createElement('div');
     card.className = 'qr-card';
-    card.id = 'card-' + a.id;
-    const wrap = document.createElement('div');
-    wrap.className = 'qr-canvas-wrap';
-    const desc = assetDesc(a);
     card.innerHTML = `<div class="qr-canvas-wrap" id="qr-${a.id}"></div>
       <div class="qr-label">${a.asset_number}</div>
       ${desc !== '—' ? `<div class="qr-sublabel">${desc}</div>` : ''}
-      <button class="qr-dl-btn" onclick="downloadSingle('${a.id}','${a.asset_number.replace(/'/g,"\\'")}')">↓ Download PNG</button>`;
+      <button class="qr-dl-btn" data-id="${a.id}" data-num="${a.asset_number}">↓ Download PNG</button>`;
     grid.appendChild(card);
     setTimeout(() => {
       generateQR(document.getElementById('qr-' + a.id), url, 120);
@@ -583,18 +593,18 @@ function regenerateVisible() {
   if (selected.size > 0) renderQRs();
 }
 
-// Download single PNG
+// ── Download single PNG ────────────────────────────────────────────
 function downloadSingle(id, assetNum) {
   const container = document.getElementById('qr-' + id);
+  if (!container) return;
   const canvas = container.querySelector('canvas');
   if (!canvas) return;
 
-  // Build labeled canvas
   const out = document.createElement('canvas');
   out.width = 200; out.height = 230;
   const ctx = out.getContext('2d');
   ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0,0,200,230);
+  ctx.fillRect(0, 0, 200, 230);
   ctx.drawImage(canvas, 20, 10, 160, 160);
   ctx.fillStyle = '#000000';
   ctx.font = 'bold 16px monospace';
@@ -605,13 +615,13 @@ function downloadSingle(id, assetNum) {
   ctx.fillText('Rexius Fleet', 100, 215);
 
   const link = document.createElement('a');
-  link.download = `${assetNum.replace(/[^a-zA-Z0-9-]/g,'_')}_qr.png`;
+  link.download = `${assetNum.replace(/[^a-zA-Z0-9-]/g, '_')}_qr.png`;
   link.href = out.toDataURL('image/png');
   link.click();
   toast('Downloaded ' + assetNum);
 }
 
-// Download ZIP of all selected
+// ── Download ZIP ───────────────────────────────────────────────────
 async function downloadZip() {
   const selectedAssets = allAssets.filter(a => selected.has(a.id));
   if (!selectedAssets.length) return;
@@ -639,7 +649,7 @@ async function downloadZip() {
         out.width = 240; out.height = 280;
         const ctx = out.getContext('2d');
         ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0,0,240,280);
+        ctx.fillRect(0, 0, 240, 280);
         ctx.drawImage(qrCanvas, 20, 10, 200, 200);
         ctx.fillStyle = '#000000';
         ctx.font = 'bold 18px monospace';
@@ -650,7 +660,7 @@ async function downloadZip() {
         ctx.fillText('Rexius Fleet', 120, 258);
 
         out.toBlob(blob => {
-          const fname = `${a.asset_number.replace(/[^a-zA-Z0-9-]/g,'_')}_qr.png`;
+          const fname = `${a.asset_number.replace(/[^a-zA-Z0-9-]/g, '_')}_qr.png`;
           zip.file(fname, blob);
           document.body.removeChild(tmp);
           resolve();
@@ -659,15 +669,15 @@ async function downloadZip() {
     });
   }
 
-  const content = await zip.generateAsync({type:'blob'});
+  const content = await zip.generateAsync({ type: 'blob' });
   const link = document.createElement('a');
-  link.download = `rexius_qr_codes_${new Date().toISOString().slice(0,10)}.zip`;
+  link.download = `rexius_qr_codes_${new Date().toISOString().slice(0, 10)}.zip`;
   link.href = URL.createObjectURL(content);
   link.click();
   toast(`Downloaded ${selectedAssets.length} QR codes`);
 }
 
-// Print sheet
+// ── Print sheet ────────────────────────────────────────────────────
 function printSelected() {
   const selectedAssets = allAssets.filter(a => selected.has(a.id));
   if (!selectedAssets.length) return;
@@ -684,18 +694,19 @@ function printSelected() {
     const label = document.createElement('div');
     label.className = 'print-label';
     label.textContent = a.asset_number;
-    const url = document.createElement('div');
-    url.className = 'print-url';
-    url.textContent = getUrl(a.asset_number);
+    const urlDiv = document.createElement('div');
+    urlDiv.className = 'print-url';
+    urlDiv.textContent = getUrl(a.asset_number);
     cell.appendChild(qrDiv);
     cell.appendChild(label);
-    cell.appendChild(url);
+    cell.appendChild(urlDiv);
     grid.appendChild(cell);
 
     new QRCode(qrDiv, {
       text: getUrl(a.asset_number),
       width: 130, height: 130,
-      colorDark: '#000000', colorLight: '#ffffff',
+      colorDark: '#000000',
+      colorLight: '#ffffff',
       correctLevel: QRCode.CorrectLevel.H
     });
     rendered++;
