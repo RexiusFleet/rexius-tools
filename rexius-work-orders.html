@@ -33,7 +33,6 @@
 html, body { height: 100%; }
 body { font-family: var(--body); background: var(--surface); color: var(--ink); -webkit-font-smoothing: antialiased; }
 
-/* ── LOGIN ── */
 #loginScreen { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--ink); background-image: repeating-linear-gradient(0deg,transparent,transparent 39px,rgba(255,255,255,.03) 39px,rgba(255,255,255,.03) 40px),repeating-linear-gradient(90deg,transparent,transparent 39px,rgba(255,255,255,.03) 39px,rgba(255,255,255,.03) 40px); }
 .login-box { background: var(--paper); border: 1px solid #333; width: 100%; max-width: 400px; padding: 36px; }
 .login-wordmark { font-family: var(--display); font-size: 11px; font-weight: 600; letter-spacing: .25em; text-transform: uppercase; color: var(--green); margin-bottom: 4px; }
@@ -47,7 +46,6 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
 .login-err { font-size: 12px; color: var(--red); margin-top: 6px; display: none; }
 .login-err.show { display: block; }
 
-/* ── APP ── */
 #app { display: none; flex-direction: column; min-height: 100vh; }
 #app.active { display: flex; }
 
@@ -61,7 +59,6 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
 .logout-btn { font-family: var(--mono); font-size: 11px; color: rgba(255,255,255,.35); background: none; border: 1px solid rgba(255,255,255,.12); padding: 4px 9px; cursor: pointer; transition: all .12s; }
 .logout-btn:hover { border-color: var(--green); color: var(--green); }
 
-/* ── TAB BAR ── */
 .tab-bar { background: var(--paper); border-bottom: 1px solid var(--border); padding: 0 20px; display: flex; gap: 0; align-items: flex-end; }
 .tab { font-family: var(--display); font-size: 13px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; padding: 12px 18px; cursor: pointer; color: var(--gray); border-bottom: 2px solid transparent; transition: all .12s; white-space: nowrap; }
 .tab:hover { color: var(--ink); }
@@ -69,7 +66,6 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
 .tab-badge { display: inline-block; font-family: var(--mono); font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 10px; background: var(--surface); color: var(--gray); margin-left: 5px; }
 .tab.active .tab-badge { background: var(--green-light); color: var(--green); }
 
-/* ── TOOLBAR ── */
 .toolbar { padding: 12px 20px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: var(--paper); border-bottom: 1px solid var(--border); }
 .tb-search { font-family: var(--body); font-size: 13px; padding: 7px 11px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); outline: none; width: 220px; }
 .tb-search:focus { border-color: var(--green); background: var(--paper); }
@@ -81,10 +77,8 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
 .tb-btn.primary { background: var(--green); border-color: var(--green); color: #fff; }
 .tb-btn.primary:hover { opacity: .88; }
 
-/* ── CONTENT ── */
 .content { flex: 1; padding: 20px; overflow-y: auto; }
 
-/* ── STATS ── */
 .stat-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 18px; }
 .stat { background: var(--paper); border: 1px solid var(--border); padding: 14px 16px; position: relative; }
 .stat::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--border); }
@@ -96,7 +90,6 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
 .stat-n { font-family: var(--display); font-size: 32px; font-weight: 700; line-height: 1; }
 .stat-l { font-family: var(--mono); font-size: 10px; font-weight: 500; letter-spacing: .1em; text-transform: uppercase; color: var(--gray); margin-top: 3px; }
 
-/* ── KANBAN ── */
 .kanban { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
 .lane { background: var(--surface); border: 1px solid var(--border); }
 .lane-header { padding: 10px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; background: var(--paper); }
@@ -104,7 +97,6 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
 .lane-count { font-family: var(--mono); font-size: 11px; color: var(--gray); }
 .lane-body { padding: 10px; display: flex; flex-direction: column; gap: 8px; min-height: 120px; }
 
-/* ── WO CARD ── */
 .wo-card { background: var(--paper); border: 1px solid var(--border); border-left: 3px solid var(--border); padding: 11px 13px; cursor: pointer; transition: all .12s; position: relative; }
 .wo-card:hover { border-color: var(--green); box-shadow: 0 2px 8px rgba(0,0,0,.08); }
 .wo-card.urgent { border-left-color: var(--red); }
@@ -121,7 +113,6 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
 .tag-cost { background: var(--amber-light); color: var(--amber); }
 .wo-date { font-family: var(--mono); font-size: 10px; color: var(--gray); margin-left: auto; }
 
-/* ── TABLE VIEW ── */
 .wo-table { width: 100%; border-collapse: collapse; background: var(--paper); border: 1px solid var(--border); font-size: 13px; }
 .wo-table th { font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--gray); background: var(--surface); padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; cursor: pointer; user-select: none; }
 .wo-table th:hover { color: var(--ink); }
@@ -130,7 +121,6 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
 .wo-table tr:hover td { background: var(--surface); }
 .wo-table tr { cursor: pointer; }
 
-/* ── PRIORITY PILLS ── */
 .pri { font-family: var(--mono); font-size: 10px; font-weight: 600; padding: 3px 8px; letter-spacing: .04em; text-transform: uppercase; }
 .pri-urgent { background: var(--red-light); color: var(--red); }
 .pri-high { background: var(--orange-light); color: var(--orange); }
@@ -144,7 +134,6 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
 .st-completed { background: var(--green-light); color: var(--green); }
 .st-cancelled { background: var(--surface); color: var(--gray); }
 
-/* ── MODAL ── */
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 200; display: none; align-items: center; justify-content: center; }
 .modal-overlay.open { display: flex; }
 .modal { background: var(--paper); width: 100%; max-width: 580px; max-height: 90vh; overflow-y: auto; border: 1px solid var(--border); }
@@ -166,7 +155,6 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
 .m-btn.danger { border-color: var(--red); color: var(--red); }
 .m-btn.danger:hover { background: var(--red); color: #fff; }
 
-/* ── NEW WO FORM ── */
 .form-row { margin-bottom: 14px; }
 .form-label { display: block; font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--gray); margin-bottom: 5px; }
 .form-input, .form-select, .form-textarea { width: 100%; font-family: var(--body); font-size: 14px; padding: 9px 11px; border: 1px solid var(--border); background: var(--paper); color: var(--ink); outline: none; transition: border-color .15s; }
@@ -174,16 +162,13 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
 .form-textarea { resize: vertical; min-height: 80px; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
-/* ── EMPTY ── */
 .empty { text-align: center; padding: 40px 20px; color: var(--gray); }
 .empty-icon { font-size: 32px; opacity: .3; margin-bottom: 8px; }
 .empty p { font-size: 13px; font-family: var(--mono); }
 
-/* ── TOAST ── */
 .toast { position: fixed; bottom: 20px; right: 20px; background: var(--ink); color: var(--paper); font-family: var(--mono); font-size: 12px; padding: 10px 16px; border-left: 3px solid var(--green); opacity: 0; transform: translateY(6px); transition: all .2s; z-index: 999; pointer-events: none; }
 .toast.show { opacity: 1; transform: none; }
 
-/* ── LOADING ── */
 .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--green); border-radius: 50%; animation: spin .6s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 </style>
@@ -200,8 +185,8 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
     <label class="login-label">Your name</label>
     <input class="login-input" id="loginName" placeholder="First Last" autocomplete="name">
     <label class="login-label">Password</label>
-    <input class="login-input" id="loginPass" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
-    <button class="login-btn" onclick="doLogin()">Enter Shop</button>
+    <input class="login-input" id="loginPass" type="password" placeholder="••••••••">
+    <button class="login-btn" id="loginBtn">Enter Shop</button>
     <div class="login-err" id="loginErr">Incorrect password or name required.</div>
   </div>
 </div>
@@ -215,39 +200,36 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
     </div>
     <div class="topbar-right">
       <div class="topbar-user">Signed in as <span id="topUser">—</span></div>
-      <button class="logout-btn" onclick="doLogout()">Sign out</button>
+      <button class="logout-btn" id="logoutBtn">Sign out</button>
     </div>
   </div>
 
-  <!-- Tab bar -->
   <div class="tab-bar">
-    <div class="tab active" id="tab-board" onclick="switchTab('board')">Board <span class="tab-badge" id="badge-board">0</span></div>
-    <div class="tab" id="tab-list" onclick="switchTab('list')">All Work Orders <span class="tab-badge" id="badge-list">0</span></div>
-    <div class="tab" id="tab-week" onclick="switchTab('week')">This Week <span class="tab-badge" id="badge-week">0</span></div>
+    <div class="tab active" id="tab-board" data-tab="board">Board <span class="tab-badge" id="badge-board">0</span></div>
+    <div class="tab" id="tab-list" data-tab="list">All Work Orders <span class="tab-badge" id="badge-list">0</span></div>
+    <div class="tab" id="tab-week" data-tab="week">This Week <span class="tab-badge" id="badge-week">0</span></div>
   </div>
 
-  <!-- Toolbar -->
   <div class="toolbar">
-    <input class="tb-search" id="searchBox" placeholder="Search asset, description..." oninput="applyFilter()">
-    <select class="tb-select" id="filterPri" onchange="applyFilter()">
+    <input class="tb-search" id="searchBox" placeholder="Search asset, description...">
+    <select class="tb-select" id="filterPri">
       <option value="all">All priorities</option>
       <option value="urgent">Urgent</option>
       <option value="high">High</option>
       <option value="normal">Normal</option>
       <option value="low">Low</option>
     </select>
-    <select class="tb-select" id="filterTeam" onchange="applyFilter()">
+    <select class="tb-select" id="filterTeam">
       <option value="all">All teams</option>
     </select>
-    <select class="tb-select" id="filterMech" onchange="applyFilter()">
+    <select class="tb-select" id="filterMech">
       <option value="all">All mechanics</option>
       <option value="unassigned">Unassigned</option>
     </select>
     <div class="tb-sep"></div>
-    <button class="tb-btn primary" onclick="openNewWO()">+ New Work Order</button>
+    <button class="tb-btn primary" id="newWOBtn">+ New Work Order</button>
   </div>
 
-  <!-- Content -->
   <div class="content" id="content">
     <div class="empty"><div class="spinner"></div></div>
   </div>
@@ -261,13 +243,13 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
         <div class="modal-title" id="detailTitle">—</div>
         <div class="modal-asset" id="detailAsset">—</div>
       </div>
-      <button class="modal-close" onclick="closeModal('detailModal')">×</button>
+      <button class="modal-close" data-close="detailModal">×</button>
     </div>
     <div class="modal-body" id="detailBody"></div>
     <div class="modal-footer">
-      <button class="m-btn danger" id="detailCancelBtn" onclick="cancelWO()">Cancel WO</button>
-      <button class="m-btn" onclick="closeModal('detailModal')">Close</button>
-      <button class="m-btn primary" id="detailProgressBtn" onclick="advanceStatus()">Mark In Progress</button>
+      <button class="m-btn danger" id="detailCancelBtn">Cancel WO</button>
+      <button class="m-btn" data-close="detailModal">Close</button>
+      <button class="m-btn primary" id="detailProgressBtn">Mark In Progress</button>
     </div>
   </div>
 </div>
@@ -277,13 +259,13 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
   <div class="modal">
     <div class="modal-header">
       <div><div class="modal-title">New Work Order</div></div>
-      <button class="modal-close" onclick="closeModal('newWOModal')">×</button>
+      <button class="modal-close" data-close="newWOModal">×</button>
     </div>
     <div class="modal-body">
       <div class="form-row">
         <label class="form-label">Asset *</label>
         <div style="position:relative">
-          <input class="form-input" id="woAssetSearch" placeholder="Search asset number, make, model..." autocomplete="off" oninput="searchAssets(this.value)">
+          <input class="form-input" id="woAssetSearch" placeholder="Search asset number, make, model..." autocomplete="off">
           <div id="assetDropdown" style="position:absolute;top:100%;left:0;right:0;background:var(--paper);border:1px solid var(--border);max-height:200px;overflow-y:auto;z-index:999;display:none"></div>
         </div>
         <input type="hidden" id="woAssetId">
@@ -326,8 +308,8 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
       <div id="woError" style="font-size:12px;color:var(--red);margin-top:4px;display:none"></div>
     </div>
     <div class="modal-footer">
-      <button class="m-btn" onclick="closeModal('newWOModal')">Cancel</button>
-      <button class="m-btn primary" onclick="saveNewWO()">Create Work Order</button>
+      <button class="m-btn" data-close="newWOModal">Cancel</button>
+      <button class="m-btn primary" id="saveNewWOBtn">Create Work Order</button>
     </div>
   </div>
 </div>
@@ -347,7 +329,57 @@ let allAssets   = [];
 let allPeople   = [];
 let selectedWO  = null;
 
-// ── LOGIN ──────────────────────────────────────────────────────────
+// ── Static event listeners ─────────────────────────────────────────
+document.getElementById('loginBtn').addEventListener('click', () => doLogin());
+document.getElementById('loginPass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+document.getElementById('logoutBtn').addEventListener('click', () => doLogout());
+document.getElementById('newWOBtn').addEventListener('click', () => openNewWO());
+document.getElementById('searchBox').addEventListener('input', () => applyFilter());
+document.getElementById('filterPri').addEventListener('change', () => applyFilter());
+document.getElementById('filterTeam').addEventListener('change', () => applyFilter());
+document.getElementById('filterMech').addEventListener('change', () => applyFilter());
+document.getElementById('detailCancelBtn').addEventListener('click', () => cancelWO());
+document.getElementById('detailProgressBtn').addEventListener('click', () => advanceStatus());
+document.getElementById('saveNewWOBtn').addEventListener('click', () => saveNewWO());
+document.getElementById('woAssetSearch').addEventListener('input', e => searchAssets(e.target.value));
+
+// ── Event delegation ───────────────────────────────────────────────
+document.addEventListener('click', e => {
+  // Close modal buttons
+  const closeBtn = e.target.closest('[data-close]');
+  if (closeBtn) {
+    closeModal(closeBtn.dataset.close);
+    return;
+  }
+
+  // Tab buttons
+  const tab = e.target.closest('.tab[data-tab]');
+  if (tab) {
+    switchTab(tab.dataset.tab);
+    return;
+  }
+
+  // WO cards and table rows
+  const woCard = e.target.closest('[data-wo-id]');
+  if (woCard) {
+    openDetail(woCard.dataset.woId);
+    return;
+  }
+
+  // Asset dropdown options
+  const assetOpt = e.target.closest('.asset-opt[data-asset-id]');
+  if (assetOpt) {
+    selectAsset(assetOpt.dataset.assetId, assetOpt.dataset.assetNum, assetOpt.dataset.assetDesc);
+    return;
+  }
+
+  // Close asset dropdown on outside click
+  if (!e.target.closest('#woAssetSearch') && !e.target.closest('#assetDropdown')) {
+    document.getElementById('assetDropdown').style.display = 'none';
+  }
+});
+
+// ── Login ──────────────────────────────────────────────────────────
 function doLogin() {
   const name = document.getElementById('loginName').value.trim();
   const pass = document.getElementById('loginPass').value;
@@ -360,7 +392,7 @@ function doLogin() {
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('app').classList.add('active');
   document.getElementById('topUser').textContent = name;
-  document.getElementById('woDate').value = new Date().toISOString().slice(0,10);
+  document.getElementById('woDate').value = new Date().toISOString().slice(0, 10);
   loadData();
 }
 
@@ -369,7 +401,7 @@ function doLogout() {
   location.reload();
 }
 
-// ── DATA ───────────────────────────────────────────────────────────
+// ── Data ───────────────────────────────────────────────────────────
 async function rpc(fn, body) {
   const r = await fetch(`${SUPA}/rest/v1/rpc/${fn}`, { method: 'POST', headers: H, body: JSON.stringify(body) });
   return r.json();
@@ -379,9 +411,9 @@ async function loadData() {
   showSpinner();
   try {
     const data = await rpc('get_work_order_portal_data', {});
-    allWOs    = data.work_orders   || [];
-    allPeople = data.mechanics     || [];
-    allAssets = data.assets        || [];
+    allWOs    = data.work_orders || [];
+    allPeople = data.mechanics   || [];
+    allAssets = data.assets      || [];
     populateFilters();
     render();
   } catch(e) {
@@ -391,26 +423,23 @@ async function loadData() {
 }
 
 function populateFilters() {
-  // Teams
   const teams = [...new Set(allWOs.map(w => w.team).filter(Boolean))].sort();
   const ts = document.getElementById('filterTeam');
   ts.innerHTML = '<option value="all">All teams</option>' + teams.map(t => `<option value="${t}">${t}</option>`).join('');
 
-  // Mechanics
   const ms = document.getElementById('filterMech');
   ms.innerHTML = '<option value="all">All mechanics</option><option value="unassigned">Unassigned</option>' +
     allPeople.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
 
-  // WO mechanic dropdown
   const wm = document.getElementById('woMechanic');
   wm.innerHTML = '<option value="">Unassigned</option>' + allPeople.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
 }
 
 function getFiltered() {
-  const q     = document.getElementById('searchBox').value.toLowerCase();
-  const pri   = document.getElementById('filterPri').value;
-  const team  = document.getElementById('filterTeam').value;
-  const mech  = document.getElementById('filterMech').value;
+  const q    = document.getElementById('searchBox').value.toLowerCase();
+  const pri  = document.getElementById('filterPri').value;
+  const team = document.getElementById('filterTeam').value;
+  const mech = document.getElementById('filterMech').value;
   return allWOs.filter(w => {
     if (q && !((w.asset_number||'').toLowerCase().includes(q) || (w.description||'').toLowerCase().includes(q) || (w.mechanic||'').toLowerCase().includes(q))) return false;
     if (pri  !== 'all' && w.priority !== pri) return false;
@@ -423,28 +452,24 @@ function getFiltered() {
 
 function applyFilter() { render(); }
 
-// ── RENDER ─────────────────────────────────────────────────────────
+// ── Render ─────────────────────────────────────────────────────────
 function render() {
-  const wos = getFiltered();
-  const open = wos.filter(w => w.status === 'open');
+  const wos    = getFiltered();
+  const open   = wos.filter(w => w.status === 'open');
   const inprog = wos.filter(w => w.status === 'in_progress');
-  const done = allWOs.filter(w => w.status === 'completed');
-  const thisWeek = wos.filter(w => {
-    const d = new Date(w.date_opened);
-    const now = new Date();
-    const startOfWeek = new Date(now); startOfWeek.setDate(now.getDate() - now.getDay());
-    return d >= startOfWeek;
-  });
+  const done   = allWOs.filter(w => w.status === 'completed');
+  const now    = new Date();
+  const startOfWeek = new Date(now); startOfWeek.setDate(now.getDate() - now.getDay());
+  const thisWeek = wos.filter(w => new Date(w.date_opened) >= startOfWeek);
 
-  // Badges
   document.getElementById('badge-board').textContent = open.length + inprog.length;
   document.getElementById('badge-list').textContent  = wos.length;
   document.getElementById('badge-week').textContent  = thisWeek.length;
 
-  // Stats
   const urgent = wos.filter(w => w.priority === 'urgent' && w.status !== 'completed').length;
   const high   = wos.filter(w => w.priority === 'high'   && w.status !== 'completed').length;
   const unass  = wos.filter(w => !w.mechanic_id           && w.status !== 'completed').length;
+
   const statsHtml = `<div class="stat-row">
     <div class="stat urgent"><div class="stat-n" style="color:var(--red)">${urgent}</div><div class="stat-l">Urgent</div></div>
     <div class="stat high"><div class="stat-n" style="color:#ea580c">${high}</div><div class="stat-l">High Priority</div></div>
@@ -459,10 +484,12 @@ function render() {
 }
 
 function woCard(w) {
-  const pri = w.priority || 'normal';
-  const mech = w.mechanic ? `<span class="wo-tag tag-mech">${w.mechanic}</span>` : `<span class="wo-tag tag-unassigned">Unassigned</span>`;
+  const pri  = w.priority || 'normal';
+  const mech = w.mechanic
+    ? `<span class="wo-tag tag-mech">${w.mechanic}</span>`
+    : `<span class="wo-tag tag-unassigned">Unassigned</span>`;
   const cost = w.total_parts_cost ? `<span class="wo-tag tag-cost">$${parseFloat(w.total_parts_cost).toLocaleString()}</span>` : '';
-  return `<div class="wo-card ${pri}" onclick="openDetail('${w.id}')">
+  return `<div class="wo-card ${pri}" data-wo-id="${w.id}">
     <div class="wo-asset">${w.asset_number || '—'}</div>
     <div class="wo-desc">${w.description || '—'}</div>
     <div class="wo-meta">
@@ -486,21 +513,21 @@ function renderBoard(stats, open, inprog, done) {
       </div>
       <div class="lane">
         <div class="lane-header"><span class="lane-title">Completed</span><span class="lane-count">${done.length}</span></div>
-        <div class="lane-body">${done.length ? done.slice(0,10).map(woCard).join('') : '<div class="empty"><div class="empty-icon">📋</div><p>None yet</p></div>'}</div>
+        <div class="lane-body">${done.length ? done.slice(0, 10).map(woCard).join('') : '<div class="empty"><div class="empty-icon">📋</div><p>None yet</p></div>'}</div>
       </div>
     </div>`;
 }
 
-function renderTable(stats, wos, weekMode=false) {
+function renderTable(stats, wos) {
   const rows = wos.length ? wos.map(w => {
-    const pri = w.priority ? `<span class="pri pri-${w.priority}">${w.priority}</span>` : `<span class="pri pri-null">—</span>`;
-    const st  = `<span class="st st-${w.status}">${w.status.replace('_',' ')}</span>`;
+    const pri  = w.priority ? `<span class="pri pri-${w.priority}">${w.priority}</span>` : `<span class="pri pri-null">—</span>`;
+    const st   = `<span class="st st-${w.status}">${w.status.replace('_', ' ')}</span>`;
     const mech = w.mechanic || '<span style="color:var(--gray);font-size:11px">Unassigned</span>';
     const cost = w.total_parts_cost ? `$${parseFloat(w.total_parts_cost).toLocaleString()}` : '—';
-    return `<tr onclick="openDetail('${w.id}')">
-      <td><span style="font-family:var(--mono);font-size:12px;font-weight:600">${w.asset_number||'—'}</span></td>
-      <td>${w.description||'—'}</td>
-      <td><span style="font-size:11px;color:var(--gray)">${w.team||'—'}</span></td>
+    return `<tr data-wo-id="${w.id}">
+      <td><span style="font-family:var(--mono);font-size:12px;font-weight:600">${w.asset_number || '—'}</span></td>
+      <td>${w.description || '—'}</td>
+      <td><span style="font-size:11px;color:var(--gray)">${w.team || '—'}</span></td>
       <td>${pri}</td>
       <td>${st}</td>
       <td style="font-size:12px">${mech}</td>
@@ -516,7 +543,7 @@ function renderTable(stats, wos, weekMode=false) {
     </table>`;
 }
 
-// ── DETAIL MODAL ───────────────────────────────────────────────────
+// ── Detail modal ───────────────────────────────────────────────────
 function openDetail(id) {
   selectedWO = allWOs.find(w => w.id === id);
   if (!selectedWO) return;
@@ -528,7 +555,7 @@ function openDetail(id) {
   const cost = w.total_parts_cost ? `$${parseFloat(w.total_parts_cost).toLocaleString()}` : '—';
   document.getElementById('detailBody').innerHTML = `
     <div class="modal-grid">
-      <div class="modal-section"><div class="modal-label">Status</div><div class="modal-value"><span class="st st-${w.status}">${w.status.replace('_',' ')}</span></div></div>
+      <div class="modal-section"><div class="modal-label">Status</div><div class="modal-value"><span class="st st-${w.status}">${w.status.replace('_', ' ')}</span></div></div>
       <div class="modal-section"><div class="modal-label">Priority</div><div class="modal-value">${w.priority ? `<span class="pri pri-${w.priority}">${w.priority}</span>` : '—'}</div></div>
       <div class="modal-section"><div class="modal-label">Team</div><div class="modal-value">${w.team || '—'}</div></div>
       <div class="modal-section"><div class="modal-label">Assigned To</div><div class="modal-value">${w.mechanic || 'Unassigned'}</div></div>
@@ -537,11 +564,10 @@ function openDetail(id) {
     </div>
     ${w.notes ? `<div class="modal-section"><div class="modal-label">Notes</div><div class="modal-notes">${w.notes}</div></div>` : ''}`;
 
-  // Progress button label
   const pb = document.getElementById('detailProgressBtn');
-  if (w.status === 'open')        { pb.textContent = 'Mark In Progress'; pb.style.display = ''; }
-  else if (w.status === 'in_progress') { pb.textContent = 'Mark Completed'; pb.style.display = ''; }
-  else { pb.style.display = 'none'; }
+  if (w.status === 'open')             { pb.textContent = 'Mark In Progress'; pb.style.display = ''; }
+  else if (w.status === 'in_progress') { pb.textContent = 'Mark Completed';   pb.style.display = ''; }
+  else                                 { pb.style.display = 'none'; }
 
   document.getElementById('detailModal').classList.add('open');
   rpc('log_access', { p_tool_name: 'work-orders', p_user_name: currentUser, p_action: 'view_wo', p_metadata: { wo_id: id, asset: w.asset_number } });
@@ -552,7 +578,7 @@ async function advanceStatus() {
   const nextStatus = selectedWO.status === 'open' ? 'in_progress' : 'completed';
   await rpc('update_work_order_status', { p_wo_id: selectedWO.id, p_status: nextStatus, p_user: currentUser });
   closeModal('detailModal');
-  showToast(`Work order marked ${nextStatus.replace('_',' ')}`);
+  showToast(`Work order marked ${nextStatus.replace('_', ' ')}`);
   rpc('log_access', { p_tool_name: 'work-orders', p_user_name: currentUser, p_action: 'status_change', p_metadata: { wo_id: selectedWO.id, status: nextStatus } });
   loadData();
 }
@@ -565,7 +591,7 @@ async function cancelWO() {
   loadData();
 }
 
-// ── NEW WO ─────────────────────────────────────────────────────────
+// ── New WO ─────────────────────────────────────────────────────────
 function openNewWO() {
   document.getElementById('woAssetSearch').value = '';
   document.getElementById('woAssetId').value = '';
@@ -574,7 +600,7 @@ function openNewWO() {
   document.getElementById('woCost').value = '';
   document.getElementById('woPriority').value = 'normal';
   document.getElementById('woMechanic').value = '';
-  document.getElementById('woDate').value = new Date().toISOString().slice(0,10);
+  document.getElementById('woDate').value = new Date().toISOString().slice(0, 10);
   document.getElementById('woError').style.display = 'none';
   document.getElementById('newWOModal').classList.add('open');
 }
@@ -582,18 +608,20 @@ function openNewWO() {
 function searchAssets(q) {
   const drop = document.getElementById('assetDropdown');
   if (!q.trim()) { drop.style.display = 'none'; return; }
-  const qn = q.toLowerCase().replace(/[\s\-_]/g,'');
+  const qn = q.toLowerCase().replace(/[\s\-_]/g, '');
   const matches = allAssets.filter(a => {
-    const an = (a.asset_number||'').toLowerCase().replace(/[\s\-_]/g,'');
-    const desc = [a.make,a.model,a.year].filter(Boolean).join(' ').toLowerCase();
+    const an   = (a.asset_number||'').toLowerCase().replace(/[\s\-_]/g, '');
+    const desc = [a.make, a.model, a.year].filter(Boolean).join(' ').toLowerCase();
     return an.includes(qn) || desc.includes(q.toLowerCase());
   }).slice(0, 8);
   if (!matches.length) { drop.style.display = 'none'; return; }
   drop.innerHTML = matches.map(a => {
     const desc = [a.year, a.make, a.model].filter(Boolean).join(' ');
-    return `<div onclick="selectAsset('${a.id}','${a.asset_number.replace(/'/g,"\\'")}','${desc.replace(/'/g,"\\'")}') "
-      style="padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--surface);font-size:13px"
-      onmouseover="this.style.background='var(--green-light)'" onmouseout="this.style.background=''">
+    return `<div class="asset-opt"
+      data-asset-id="${a.id}"
+      data-asset-num="${a.asset_number}"
+      data-asset-desc="${desc}"
+      style="padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--surface);font-size:13px">
       <span style="font-family:var(--mono);font-weight:600">${a.asset_number}</span>
       <span style="font-size:11px;color:var(--gray);margin-left:8px">${desc}</span>
     </div>`;
@@ -611,26 +639,23 @@ async function saveNewWO() {
   const assetId = document.getElementById('woAssetId').value;
   const desc    = document.getElementById('woDesc').value.trim();
   const errEl   = document.getElementById('woError');
-
   if (!assetId || !desc) {
     errEl.textContent = 'Asset and description are required.';
     errEl.style.display = 'block';
     return;
   }
-
-  const cost    = document.getElementById('woCost').value;
-  const mechId  = document.getElementById('woMechanic').value;
-  const result  = await rpc('create_work_order', {
-    p_asset_id:       assetId,
-    p_description:    desc,
-    p_priority:       document.getElementById('woPriority').value,
-    p_mechanic_id:    mechId || null,
-    p_date_opened:    document.getElementById('woDate').value,
-    p_notes:          document.getElementById('woNotes').value || null,
-    p_parts_cost:     cost ? parseFloat(cost) : null,
-    p_created_by:     currentUser,
+  const cost   = document.getElementById('woCost').value;
+  const mechId = document.getElementById('woMechanic').value;
+  const result = await rpc('create_work_order', {
+    p_asset_id:    assetId,
+    p_description: desc,
+    p_priority:    document.getElementById('woPriority').value,
+    p_mechanic_id: mechId || null,
+    p_date_opened: document.getElementById('woDate').value,
+    p_notes:       document.getElementById('woNotes').value || null,
+    p_parts_cost:  cost ? parseFloat(cost) : null,
+    p_created_by:  currentUser,
   });
-
   if (result?.success) {
     closeModal('newWOModal');
     showToast('Work order created');
@@ -642,7 +667,7 @@ async function saveNewWO() {
   }
 }
 
-// ── HELPERS ────────────────────────────────────────────────────────
+// ── Helpers ────────────────────────────────────────────────────────
 function switchTab(tab) {
   currentTab = tab;
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -654,7 +679,7 @@ function closeModal(id) { document.getElementById(id).classList.remove('open'); 
 
 function fmtDate(d) {
   if (!d) return '—';
-  return new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+  return new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 function showToast(msg) {
@@ -667,12 +692,6 @@ function showToast(msg) {
 function showSpinner() {
   document.getElementById('content').innerHTML = '<div class="empty"><div class="spinner"></div></div>';
 }
-
-document.addEventListener('click', e => {
-  if (!e.target.closest('#woAssetSearch') && !e.target.closest('#assetDropdown')) {
-    document.getElementById('assetDropdown').style.display = 'none';
-  }
-});
 </script>
 </body>
 </html>
