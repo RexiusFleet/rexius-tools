@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -281,7 +280,7 @@ const T = {
     searchDriver: 'Search name...', searchAsset: 'Search asset number, make, model...',
     assetLabel: 'Select Asset', newTag: 'NEW',
     defectLabel: 'Describe defect', addPhoto: '📷  Add Photo',
-    sev: { minor: 'Minor', major: 'Major', critical: 'Critical' },
+    sev: { minor: 'Minor', critical: 'Critical' },
     cert: 'I certify that I am the person named above and that this inspection was conducted by me to the best of my ability.',
     successTitle: 'Submitted', successSub: 'Inspection recorded successfully.',
     newInsp: 'New Inspection', submitting: 'Submitting...', loading: 'Loading...',
@@ -294,7 +293,7 @@ const T = {
     searchDriver: 'Buscar nombre...', searchAsset: 'Buscar activo, marca, modelo...',
     assetLabel: 'Seleccionar Activo', newTag: 'NUEVO',
     defectLabel: 'Describir defecto', addPhoto: '📷  Agregar Foto',
-    sev: { minor: 'Menor', major: 'Mayor', critical: 'Crítico' },
+    sev: { minor: 'Menor', critical: 'Crítico' },
     cert: 'Certifico que soy la persona indicada y que realicé esta inspección de la mejor manera posible.',
     successTitle: 'Enviado', successSub: 'Inspección registrada correctamente.',
     newInsp: 'Nueva Inspección', submitting: 'Enviando...', loading: 'Cargando...',
@@ -717,7 +716,6 @@ function renderDefectPanel(item, resp) {
     <textarea class="defect-textarea" data-item-id="${item.id}" placeholder="${t('defectLabel')}...">${resp.notes || ''}</textarea>
     <div class="sev-row">
       <button class="sev-btn minor${sev === 'minor' ? ' sel' : ''}" data-item-id="${item.id}" data-sev="minor">${t('sev').minor}</button>
-      <button class="sev-btn major${sev === 'major' ? ' sel' : ''}" data-item-id="${item.id}" data-sev="major">${t('sev').major}</button>
       <button class="sev-btn critical${sev === 'critical' ? ' sel' : ''}" data-item-id="${item.id}" data-sev="critical">${t('sev').critical}</button>
     </div>
     <label class="photo-upload-btn">
@@ -863,6 +861,31 @@ async function submitInspection() {
     });
     const result = await rpc.json();
     if (!result?.success) throw new Error('Submission failed: ' + JSON.stringify(result));
+
+    // Auto-create work orders for each defect
+    if (failures.length > 0) {
+      for (const item of failures) {
+        const resp = responses[item.id];
+        const description = (lang === 'es' && item.title_es ? item.title_es : item.title) +
+          (resp.notes ? ': ' + resp.notes : '');
+        const priority = resp.severity === 'critical' ? 'high' : 'low';
+        try {
+          await fetch(`${SUPA}/rest/v1/rpc/create_work_order`, {
+            method: 'POST', headers: H,
+            body: JSON.stringify({
+              p_asset_id:    asset.id,
+              p_description: description,
+              p_priority:    priority,
+              p_mechanic_id: null,
+              p_date_opened: new Date().toISOString().slice(0, 10),
+              p_notes:       `Auto-created from inspection. Severity: ${resp.severity || 'minor'}.`,
+              p_parts_cost:  null,
+              p_created_by:  selectedDriver?.name || 'Inspection Form',
+            })
+          });
+        } catch(e) { console.error('Work order creation failed:', e); }
+      }
+    }
 
     showLoading(false);
     showScreen('screenSuccess');
