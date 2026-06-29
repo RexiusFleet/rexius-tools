@@ -760,6 +760,9 @@ function openDetail(id) {
   const mechOptions = '<option value="">Unassigned</option>' +
     allPeople.map(p => `<option value="${p.id}" ${p.id === w.mechanic_id ? 'selected' : ''}>${p.name}</option>`).join('');
 
+  const shopOptions = '<option value="">Unassigned</option>' +
+    allShops.map(sh => `<option value="${sh.id}" ${sh.id === w.shop_id ? 'selected' : ''}>${sh.name}${sh.region ? ` (${sh.region})` : ''}</option>`).join('');
+
   const history = (w.assignments && w.assignments.length)
     ? w.assignments.map(a => `
         <div class="assign-row">
@@ -860,6 +863,14 @@ function openDetail(id) {
     </div>
 
     <div class="modal-section" style="margin-top:14px">
+      <div class="modal-label">Shop Location</div>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:4px">
+        <select class="form-select" id="assignShop" style="flex:1">${shopOptions}</select>
+        <button class="m-btn primary" id="assignShopBtn" style="white-space:nowrap">Set Shop</button>
+      </div>
+    </div>
+
+    <div class="modal-section" style="margin-top:14px">
       <div class="modal-label">Assignment History</div>
       <div class="assign-history">${history}</div>
     </div>
@@ -913,6 +924,7 @@ function openDetail(id) {
     ${w.notes ? `<div class="modal-section" style="margin-top:14px"><div class="modal-label">Notes</div><div class="modal-notes">${w.notes}</div></div>` : ''}`;
 
   document.getElementById('assignBtn').addEventListener('click', () => assignMechanic());
+  document.getElementById('assignShopBtn').addEventListener('click', () => assignShop());
   document.getElementById('updBtn').addEventListener('click', () => addUpdate());
   document.getElementById('photoBtn').addEventListener('click', () => uploadWOPhoto());
   document.getElementById('expBtn').addEventListener('click', () => addExpense());
@@ -961,6 +973,26 @@ async function assignMechanic() {
     loadData();
   } else {
     showToast('Failed to assign: ' + JSON.stringify(result));
+  }
+}
+
+async function assignShop() {
+  if (!selectedWO) return;
+  const shopId = document.getElementById('assignShop').value;
+  const result = await rpc('assign_work_order_shop', {
+    p_wo_id:       selectedWO.id,
+    p_shop_id:     shopId || null,
+    p_assigned_by: currentUser,
+  });
+  if (result?.success) {
+    const name = shopId ? (allShops.find(s => s.id === shopId)?.name || 'shop') : 'Unassigned';
+    showToast(shopId ? `Shop set to ${name}` : 'Shop cleared');
+    rpc('log_access', { p_tool_name: 'work-orders', p_user_name: currentUser, p_action: 'assign_shop', p_metadata: { wo_id: selectedWO.id, shop_id: shopId || null } });
+    const woId = selectedWO.id;
+    await loadData(true);
+    openDetail(woId);
+  } else {
+    showToast('Failed to set shop: ' + JSON.stringify(result));
   }
 }
 
