@@ -287,7 +287,8 @@ const T = {
     defectLabel: 'Describe defect', addPhoto: '📷  Add Photo',
     phoneLabel: 'Contact phone for follow-up',
     supervisorLabel: 'Supervisor name', supervisorPlaceholder: 'Supervisor name...',
-    phoneMissing: 'Add a contact phone for each defect',
+    phoneInvalid: 'Enter a valid 10-digit contact phone on at least one defect',
+    supervisorMissing: 'Enter the supervisor name to submit',
     sev: { minor: 'Minor', critical: 'Critical' },
     cert: 'I certify that I am the person named above and that this inspection was conducted by me to the best of my ability.',
     successTitle: 'Submitted', successSub: 'Inspection recorded successfully.',
@@ -303,7 +304,8 @@ const T = {
     defectLabel: 'Describir defecto', addPhoto: '📷  Agregar Foto',
     phoneLabel: 'Teléfono de contacto para seguimiento',
     supervisorLabel: 'Nombre del supervisor', supervisorPlaceholder: 'Nombre del supervisor...',
-    phoneMissing: 'Agregue un teléfono de contacto para cada defecto',
+    phoneInvalid: 'Ingrese un teléfono de contacto válido de 10 dígitos en al menos un defecto',
+    supervisorMissing: 'Ingrese el nombre del supervisor para enviar',
     sev: { minor: 'Menor', critical: 'Crítico' },
     cert: 'Certifico que soy la persona indicada y que realicé esta inspección de la mejor manera posible.',
     successTitle: 'Enviado', successSub: 'Inspección registrada correctamente.',
@@ -861,15 +863,28 @@ function goBack() { showScreen('screenSetup'); }
 
 // ── Submit ─────────────────────────────────────────────────────────
 async function submitInspection() {
-  // Require a contact phone for every failed (defect) item
   const failedItems = formItems.filter(i => responses[i.id]?.value === 'fail');
-  const missingPhone = failedItems.some(i => {
-    const p = (responses[i.id]?.contact_phone || window._lastContactPhone || '').trim();
-    return !p;
-  });
-  if (missingPhone) {
-    alert(t('phoneMissing'));
-    return;
+
+  if (failedItems.length > 0) {
+    // Collect any phone entered on any defect (one covers the whole inspection)
+    const candidate = failedItems
+      .map(i => (responses[i.id]?.contact_phone || '').trim())
+      .find(p => p) || (window._lastContactPhone || '').trim();
+
+    const digits = (candidate || '').replace(/\D/g, '');
+    const valid = digits.length === 10 || (digits.length === 11 && digits.startsWith('1'));
+    if (!valid) {
+      alert(t('phoneInvalid'));
+      return;
+    }
+    // Normalize to 10 digits and stash for use at submit time
+    window._inspectionPhone = digits.length === 11 ? digits.slice(1) : digits;
+
+    // Supervisor name required when defects exist
+    if (!(supervisorName || '').trim()) {
+      alert(t('supervisorMissing'));
+      return;
+    }
   }
 
   showLoading(true, t('submitting'));
@@ -908,7 +923,7 @@ async function submitInspection() {
         description: (lang === 'es' && item.title_es ? item.title_es : item.title) + (responses[item.id].notes ? ': ' + responses[item.id].notes : ''),
         severity: responses[item.id].severity || 'minor',
         photo_paths: photos,
-        contact_phone: (responses[item.id].contact_phone || window._lastContactPhone || '').trim() || null,
+        contact_phone: window._inspectionPhone || null,
       };
     });
 
@@ -971,7 +986,7 @@ async function submitInspection() {
 function resetAll() {
   asset = null; teamRef = null; inspType = null; selectedDriver = null;
   formItems = []; responses = {}; defectPhotos = {};
-  supervisorName = ''; window._lastContactPhone = '';
+  supervisorName = ''; window._lastContactPhone = ''; window._inspectionPhone = '';
   const si = document.getElementById('supervisorInput'); if (si) si.value = '';
   document.getElementById('driverInput').value = '';
   document.getElementById('driverBadge').style.display = 'none';
