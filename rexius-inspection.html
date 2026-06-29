@@ -120,6 +120,8 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
 .defect-panel-title { font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--red); margin-bottom: 8px; }
 .defect-textarea { width: 100%; font-family: var(--body); font-size: 13px; padding: 8px 10px; border: 1px solid #fca5a5; background: #fff; color: var(--ink); resize: none; min-height: 60px; outline: none; }
 .defect-textarea:focus { border-color: var(--red); }
+.defect-phone { width: 100%; font-family: var(--body); font-size: 13px; padding: 8px 10px; border: 1px solid #fca5a5; background: #fff; color: var(--ink); outline: none; margin-top: 8px; box-sizing: border-box; -webkit-appearance: none; appearance: none; border-radius: 0; line-height: 1.4; }
+.defect-phone:focus { border-color: var(--red); }
 .sev-row { display: flex; gap: 6px; margin-top: 8px; }
 .sev-btn { font-family: var(--mono); font-size: 10px; font-weight: 600; padding: 4px 10px; border: 1px solid var(--border); background: transparent; color: var(--gray); cursor: pointer; letter-spacing: .04em; text-transform: uppercase; transition: all .12s; }
 .sev-btn.minor.sel  { border-color: var(--amber); background: var(--amber-light); color: var(--amber); }
@@ -287,7 +289,7 @@ const T = {
     defectLabel: 'Describe defect', addPhoto: '📷  Add Photo',
     phoneLabel: 'Contact phone for follow-up',
     supervisorLabel: 'Supervisor name', supervisorPlaceholder: 'Supervisor name...',
-    phoneInvalid: 'Enter a valid 10-digit contact phone on at least one defect',
+    phoneInvalid: 'Enter a valid contact phone number for at least 1 defect',
     supervisorMissing: 'Enter the supervisor name to submit',
     sev: { minor: 'Minor', critical: 'Critical' },
     cert: 'I certify that I am the person named above and that this inspection was conducted by me to the best of my ability.',
@@ -866,10 +868,12 @@ async function submitInspection() {
   const failedItems = formItems.filter(i => responses[i.id]?.value === 'fail');
 
   if (failedItems.length > 0) {
-    // Collect any phone entered on any defect (one covers the whole inspection)
-    const candidate = failedItems
-      .map(i => (responses[i.id]?.contact_phone || '').trim())
-      .find(p => p) || (window._lastContactPhone || '').trim();
+    // Collect any phone entered on any defect (one covers the whole inspection).
+    // Read live from the DOM inputs as well as the responses cache, so a value
+    // that didn't fire an input event is still caught.
+    const domPhones = Array.from(document.querySelectorAll('.defect-phone')).map(el => (el.value || '').trim());
+    const cachePhones = failedItems.map(i => (responses[i.id]?.contact_phone || '').trim());
+    const candidate = [...domPhones, ...cachePhones].find(p => p) || (window._lastContactPhone || '').trim();
 
     const digits = (candidate || '').replace(/\D/g, '');
     const valid = digits.length === 10 || (digits.length === 11 && digits.startsWith('1'));
@@ -880,11 +884,15 @@ async function submitInspection() {
     // Normalize to 10 digits and stash for use at submit time
     window._inspectionPhone = digits.length === 11 ? digits.slice(1) : digits;
 
-    // Supervisor name required when defects exist
-    if (!(supervisorName || '').trim()) {
+    // Supervisor name required when defects exist — read live from the input
+    const supEl = document.getElementById('supervisorInput');
+    const supVal = ((supEl && supEl.value) || supervisorName || '').trim();
+    if (!supVal) {
       alert(t('supervisorMissing'));
+      if (supEl) supEl.focus();
       return;
     }
+    supervisorName = supVal;
   }
 
   showLoading(true, t('submitting'));
