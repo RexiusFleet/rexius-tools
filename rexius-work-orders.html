@@ -198,6 +198,29 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
 .form-textarea { resize: vertical; min-height: 80px; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
+.exp-row { padding: 8px 10px; border: 1px solid var(--border); border-left: 3px solid var(--green); background: var(--surface); margin-bottom: 6px; }
+.exp-main { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.exp-amt { font-family: var(--mono); font-size: 14px; font-weight: 700; color: var(--ink); }
+.exp-vendor { font-size: 13px; color: #444; }
+.exp-part { font-family: var(--mono); font-size: 11px; color: var(--green); background: var(--green-light, #e8f5ee); padding: 1px 6px; }
+.exp-note { font-size: 12px; color: #555; margin-top: 3px; line-height: 1.4; }
+.exp-meta { display: flex; gap: 12px; align-items: center; margin-top: 5px; font-family: var(--mono); font-size: 10px; color: var(--gray); }
+.exp-meta span { flex: 1; }
+.exp-receipt { font-family: var(--mono); font-size: 10px; text-decoration: underline; cursor: pointer; }
+.exp-void { font-family: var(--mono); font-size: 10px; background: none; border: none; color: var(--red); cursor: pointer; text-transform: uppercase; padding: 0; }
+.exp-void:hover { text-decoration: underline; }
+
+.insp-item { padding: 8px 10px; border: 1px solid var(--border); margin-bottom: 5px; }
+.insp-item-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.insp-item-title { font-size: 13px; color: var(--ink); }
+.insp-pf { font-family: var(--mono); font-size: 10px; font-weight: 700; padding: 2px 8px; letter-spacing: .05em; }
+.insp-pass { background: var(--green-light, #e8f5ee); color: var(--green); }
+.insp-fail { background: var(--red-light, #fdecec); color: var(--red); }
+.insp-na { color: var(--gray); }
+.insp-val { font-family: var(--mono); font-size: 11px; color: #444; }
+.insp-item-notes { font-size: 12px; color: #555; margin-top: 4px; line-height: 1.4; }
+.insp-photos { display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+
 .empty { text-align: center; padding: 40px 20px; color: var(--gray); }
 .empty-icon { font-size: 32px; opacity: .3; margin-bottom: 8px; }
 .empty p { font-size: 13px; font-family: var(--mono); }
@@ -300,6 +323,23 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
       <button class="m-btn danger" id="detailCancelBtn">Cancel WO</button>
       <button class="m-btn" data-close="detailModal">Close</button>
       <button class="m-btn primary" id="detailProgressBtn">Mark In Progress</button>
+    </div>
+  </div>
+</div>
+
+<!-- INSPECTION DETAIL MODAL -->
+<div class="modal-overlay" id="inspModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="inspTitle">Inspection</div>
+        <div class="modal-asset" id="inspAsset">—</div>
+      </div>
+      <button class="modal-close" data-close="inspModal">×</button>
+    </div>
+    <div class="modal-body" id="inspBody"></div>
+    <div class="modal-footer">
+      <button class="m-btn" data-close="inspModal">Close</button>
     </div>
   </div>
 </div>
@@ -741,6 +781,28 @@ function openDetail(id) {
         </div>`).join('')
     : '<div class="assign-empty">No updates yet.</div>';
 
+  const expenses = w.expenses || [];
+  const expTotal = parseFloat(w.expenses_total || 0);
+  const expensesTotalLabel = expTotal > 0
+    ? ` · <span style="color:var(--green)">$${expTotal.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</span>`
+    : '';
+  const expensesHtml = expenses.length
+    ? expenses.map(e => `
+        <div class="exp-row" data-exp-id="${e.id}">
+          <div class="exp-main">
+            <span class="exp-amt">$${parseFloat(e.amount).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
+            <span class="exp-vendor">${esc(e.vendor) || '—'}</span>
+            ${e.part_number ? `<span class="exp-part">${esc(e.part_number)}</span>` : ''}
+          </div>
+          ${e.note ? `<div class="exp-note">${esc(e.note)}</div>` : ''}
+          <div class="exp-meta">
+            <span>${esc(e.created_by) || '—'} · ${fmtDateTime(e.created_at)}</span>
+            ${e.receipt_path ? `<a class="exp-receipt" data-receipt="${esc(e.receipt_path)}" href="#" style="color:var(--green)">receipt</a>` : ''}
+            <button class="exp-void" data-exp-id="${e.id}" title="Void this expense">void</button>
+          </div>
+        </div>`).join('')
+    : '<div class="assign-empty">No expenses logged.</div>';
+
   document.getElementById('detailBody').innerHTML = `
     <div class="modal-grid">
       <div class="modal-section"><div class="modal-label">Status</div><div class="modal-value"><span class="st st-${w.status}">${w.status.replace('_', ' ')}</span></div></div>
@@ -771,6 +833,20 @@ function openDetail(id) {
             ` : '<span style="color:var(--gray)">—</span>'}
           </div>
         </div>
+      </div>
+    </div>` : ''}
+
+    ${w.inspection ? `
+    <div class="modal-section" style="margin-top:14px;background:var(--surface);padding:12px;border-left:3px solid var(--ink)">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div class="modal-label" style="margin-bottom:0">Originating Inspection</div>
+        <button class="m-btn" id="viewInspBtn" data-insp-id="${w.inspection.id}" style="padding:4px 10px;font-size:10px">View Full Inspection</button>
+      </div>
+      <div class="modal-grid" style="margin-top:8px">
+        <div><div class="modal-label" style="color:var(--gray)">Inspector</div><div class="modal-value">${esc(w.inspection.inspector) || '—'}</div></div>
+        <div><div class="modal-label" style="color:var(--gray)">Date</div><div class="modal-value">${fmtDateTime(w.inspection.date_inspected)}</div></div>
+        <div><div class="modal-label" style="color:var(--gray)">Result</div><div class="modal-value"><span class="st st-${w.inspection.status === 'failed' ? 'open' : 'completed'}">${esc(w.inspection.status) || '—'}</span></div></div>
+        <div><div class="modal-label" style="color:var(--gray)">Form</div><div class="modal-value">${esc(w.inspection.form_name) || '—'}</div></div>
       </div>
     </div>` : ''}
 
@@ -816,11 +892,38 @@ function openDetail(id) {
       <div class="photo-grid" id="photoGrid"></div>
     </div>
 
+    <div class="modal-section" style="margin-top:14px">
+      <div class="modal-label">Expenses${expensesTotalLabel}</div>
+      <div class="exp-list" id="expList">${expensesHtml}</div>
+      <div style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <input type="number" step="0.01" min="0" id="expAmount" placeholder="Amount $" class="form-input" style="width:110px">
+          <input type="text" id="expVendor" placeholder="Vendor" class="form-input" style="flex:1;min-width:120px">
+          <input type="text" id="expPartNum" placeholder="Part #" class="form-input" style="width:120px">
+        </div>
+        <input type="text" id="expNote" placeholder="Note (optional)" class="form-input" style="width:100%;margin-top:6px">
+        <div style="display:flex;gap:8px;align-items:center;margin-top:6px">
+          <input type="file" id="expReceipt" accept="image/*" capture="environment" style="font-size:12px;flex:1">
+          <button class="m-btn primary" id="expBtn" style="white-space:nowrap">Add Expense</button>
+        </div>
+        <div id="expStatus" style="font-size:11px;color:var(--gray);margin-top:4px;display:none"></div>
+      </div>
+    </div>
+
     ${w.notes ? `<div class="modal-section" style="margin-top:14px"><div class="modal-label">Notes</div><div class="modal-notes">${w.notes}</div></div>` : ''}`;
 
   document.getElementById('assignBtn').addEventListener('click', () => assignMechanic());
   document.getElementById('updBtn').addEventListener('click', () => addUpdate());
   document.getElementById('photoBtn').addEventListener('click', () => uploadWOPhoto());
+  document.getElementById('expBtn').addEventListener('click', () => addExpense());
+  const vib = document.getElementById('viewInspBtn');
+  if (vib) vib.addEventListener('click', () => openInspection(vib.dataset.inspId));
+  document.querySelectorAll('.exp-void').forEach(b => b.addEventListener('click', () => voidExpense(b.dataset.expId)));
+  document.querySelectorAll('.exp-receipt').forEach(a => a.addEventListener('click', async ev => {
+    ev.preventDefault();
+    const url = await signedUrl(a.dataset.receipt);
+    if (url) window.open(url, '_blank', 'noopener');
+  }));
   renderPhotos(w.photos || []);
 
   const pb = document.getElementById('detailProgressBtn');
@@ -944,6 +1047,134 @@ async function uploadWOPhoto() {
     console.error(e);
     status.textContent = 'Upload error.';
   }
+}
+
+async function addExpense() {
+  if (!selectedWO) return;
+  const woId = selectedWO.id;
+  const amountRaw = document.getElementById('expAmount').value;
+  const amount = parseFloat(amountRaw);
+  if (!amountRaw || isNaN(amount) || amount <= 0) { showToast('Enter a valid amount'); return; }
+  const vendor  = document.getElementById('expVendor').value.trim() || null;
+  const partNum = document.getElementById('expPartNum').value.trim() || null;
+  const note    = document.getElementById('expNote').value.trim() || null;
+  const receiptFile = document.getElementById('expReceipt').files?.[0] || null;
+
+  const status = document.getElementById('expStatus');
+  status.style.display = 'block';
+  status.textContent = 'Saving expense...';
+
+  try {
+    const expenseId = await rpc('add_work_order_expense', {
+      p_wo_id: woId, p_amount: amount, p_vendor: vendor,
+      p_part_number: partNum, p_note: note, p_created_by: currentUser,
+    });
+    if (!expenseId) { status.textContent = 'Failed to save expense.'; return; }
+
+    // Optional receipt upload, linked to the expense
+    if (receiptFile) {
+      status.textContent = 'Uploading receipt...';
+      const ext = (receiptFile.name.split('.').pop() || 'jpg').toLowerCase();
+      const path = `${woId}/${Date.now()}_receipt_${Math.random().toString(36).slice(2)}.${ext}`;
+      const upRes = await fetch(`${SUPA}/storage/v1/object/${BUCKET}/${path}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${KEY}`, apikey: KEY, 'Content-Type': receiptFile.type },
+        body: receiptFile,
+      });
+      if (upRes.ok) {
+        await rpc('add_expense_receipt', { p_expense_id: expenseId, p_path: path });
+      } else {
+        showToast('Expense saved, but receipt upload failed');
+      }
+    }
+
+    showToast('Expense added');
+    rpc('log_access', { p_tool_name: 'work-orders', p_user_name: currentUser, p_action: 'add_expense', p_metadata: { wo_id: woId, amount } });
+    await loadData(true);
+    openDetail(woId);
+  } catch(e) {
+    console.error(e);
+    status.textContent = 'Error saving expense.';
+  }
+}
+
+async function voidExpense(expenseId) {
+  if (!selectedWO || !expenseId) return;
+  if (!confirm('Void this expense? It will be removed from the total.')) return;
+  const woId = selectedWO.id;
+  const result = await rpc('void_work_order_expense', { p_expense_id: expenseId });
+  if (result === true || result?.success) {
+    showToast('Expense voided');
+    rpc('log_access', { p_tool_name: 'work-orders', p_user_name: currentUser, p_action: 'void_expense', p_metadata: { wo_id: woId, expense_id: expenseId } });
+    await loadData(true);
+    openDetail(woId);
+  } else {
+    showToast('Failed to void expense');
+  }
+}
+
+async function openInspection(inspId) {
+  if (!inspId) return;
+  const body = document.getElementById('inspBody');
+  body.innerHTML = '<div class="assign-empty">Loading inspection…</div>';
+  document.getElementById('inspModal').classList.add('open');
+
+  let insp;
+  try {
+    insp = await rpc('get_inspection_detail', { p_inspection_id: inspId });
+  } catch(e) { body.innerHTML = '<div class="assign-empty">Failed to load inspection.</div>'; return; }
+  if (!insp) { body.innerHTML = '<div class="assign-empty">Inspection not found.</div>'; return; }
+
+  document.getElementById('inspTitle').textContent = insp.form_name || 'Inspection';
+  document.getElementById('inspAsset').textContent =
+    [insp.asset_number, insp.asset_year, insp.asset_make, insp.asset_model].filter(Boolean).join(' · ');
+
+  const items = insp.items || [];
+  const itemsHtml = items.map(it => {
+    const pf = (it.pass_fail_value || '').toLowerCase();
+    const badge = pf === 'pass' ? '<span class="insp-pf insp-pass">PASS</span>'
+                : pf === 'fail' ? '<span class="insp-pf insp-fail">FAIL</span>'
+                : (it.text_value != null ? `<span class="insp-val">${esc(it.text_value)}</span>`
+                  : it.number_value != null ? `<span class="insp-val">${esc(String(it.number_value))}</span>`
+                  : '<span class="insp-pf insp-na">—</span>');
+    const photoCount = (it.photos || []).length;
+    return `<div class="insp-item">
+      <div class="insp-item-head">
+        <span class="insp-item-title">${esc(it.title) || 'Item'}</span>
+        ${badge}
+      </div>
+      ${it.notes ? `<div class="insp-item-notes">${esc(it.notes)}</div>` : ''}
+      ${photoCount ? `<div class="insp-photos" data-photos='${esc(JSON.stringify(it.photos.map(p=>p.path)))}'></div>` : ''}
+    </div>`;
+  }).join('');
+
+  body.innerHTML = `
+    <div class="modal-grid">
+      <div class="modal-section"><div class="modal-label">Inspector</div><div class="modal-value">${esc(insp.inspector) || '—'}</div></div>
+      <div class="modal-section"><div class="modal-label">Date</div><div class="modal-value">${fmtDateTime(insp.date_inspected)}</div></div>
+      <div class="modal-section"><div class="modal-label">Result</div><div class="modal-value"><span class="st st-${insp.status === 'failed' ? 'open' : 'completed'}">${esc(insp.status) || '—'}</span></div></div>
+      <div class="modal-section"><div class="modal-label">Supervisor</div><div class="modal-value">${esc(insp.supervisor_name_raw) || '—'}</div></div>
+    </div>
+    <div class="modal-section" style="margin-top:14px">
+      <div class="modal-label">Checklist (${items.length} items)</div>
+      <div class="insp-list">${itemsHtml || '<div class="assign-empty">No line items.</div>'}</div>
+    </div>`;
+
+  // Render any line-item photos as signed-URL thumbnails
+  document.querySelectorAll('.insp-photos').forEach(async el => {
+    let paths = [];
+    try { paths = JSON.parse(el.dataset.photos); } catch(e) {}
+    el.innerHTML = paths.map((_, i) => `<div class="photo-thumb" id="insp-thumb-${Math.random().toString(36).slice(2)}-${i}"><div class="photo-loading">…</div></div>`).join('');
+    const thumbs = el.querySelectorAll('.photo-thumb');
+    paths.forEach(async (path, i) => {
+      const url = await signedUrl(path);
+      const tEl = thumbs[i];
+      if (!tEl) return;
+      tEl.innerHTML = url
+        ? `<a href="${url}" target="_blank" rel="noopener"><img src="${url}" alt="inspection photo" loading="lazy"></a>`
+        : '<div class="photo-loading">⚠</div>';
+    });
+  });
 }
 
 async function cancelWO() {
