@@ -228,6 +228,10 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
       <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
     </div>
     <div class="card" id="checklistCard"></div>
+    <div class="cert-box" id="supervisorBox">
+      <label class="cert-text" for="supervisorInput" id="supervisorLabel" style="display:block;margin-bottom:8px;">Supervisor name</label>
+      <input class="driver-input" id="supervisorInput" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Supervisor name...">
+    </div>
     <div class="cert-box" id="certBox">
       <label class="cert-label">
         <input type="checkbox" class="cert-check" id="certCheck">
@@ -270,6 +274,7 @@ let formItems = [];
 let responses = {};
 let allPeople = [];
 let defectPhotos = {};
+let supervisorName = '';
 
 // ── i18n ───────────────────────────────────────────────────────────
 const T = {
@@ -280,6 +285,9 @@ const T = {
     searchDriver: 'Search name...', searchAsset: 'Search asset number, make, model...',
     assetLabel: 'Select Asset', newTag: 'NEW',
     defectLabel: 'Describe defect', addPhoto: '📷  Add Photo',
+    phoneLabel: 'Contact phone for follow-up',
+    supervisorLabel: 'Supervisor name', supervisorPlaceholder: 'Supervisor name...',
+    phoneMissing: 'Add a contact phone for each defect',
     sev: { minor: 'Minor', critical: 'Critical' },
     cert: 'I certify that I am the person named above and that this inspection was conducted by me to the best of my ability.',
     successTitle: 'Submitted', successSub: 'Inspection recorded successfully.',
@@ -293,6 +301,9 @@ const T = {
     searchDriver: 'Buscar nombre...', searchAsset: 'Buscar activo, marca, modelo...',
     assetLabel: 'Seleccionar Activo', newTag: 'NUEVO',
     defectLabel: 'Describir defecto', addPhoto: '📷  Agregar Foto',
+    phoneLabel: 'Teléfono de contacto para seguimiento',
+    supervisorLabel: 'Nombre del supervisor', supervisorPlaceholder: 'Nombre del supervisor...',
+    phoneMissing: 'Agregue un teléfono de contacto para cada defecto',
     sev: { minor: 'Menor', critical: 'Crítico' },
     cert: 'Certifico que soy la persona indicada y que realicé esta inspección de la mejor manera posible.',
     successTitle: 'Enviado', successSub: 'Inspección registrada correctamente.',
@@ -383,6 +394,19 @@ document.addEventListener('input', e => {
     return;
   }
 
+  // Defect contact phone
+  if (el.classList.contains('defect-phone') && el.dataset.itemId) {
+    if (!responses[el.dataset.itemId]) responses[el.dataset.itemId] = {};
+    responses[el.dataset.itemId].contact_phone = el.value;
+    return;
+  }
+
+  // Supervisor name (once per inspection)
+  if (el.id === 'supervisorInput') {
+    supervisorName = el.value;
+    return;
+  }
+
   // Asset search input (dynamically injected)
   if (el.id === 'assetSearchInput') {
     onAssetSearch(el.value);
@@ -432,6 +456,10 @@ function refreshLabels() {
   if (sb) sb.textContent = t('startBtn');
   const ct = document.getElementById('certText');
   if (ct) ct.textContent = t('cert');
+  const sl = document.getElementById('supervisorLabel');
+  if (sl) sl.textContent = t('supervisorLabel');
+  const si = document.getElementById('supervisorInput');
+  if (si) si.placeholder = t('supervisorPlaceholder');
   const sub = document.getElementById('submitBtn');
   if (sub) sub.textContent = t('submitBtn');
   renderTypeGrid();
@@ -611,7 +639,32 @@ function pickDriver(idx) {
   document.getElementById('driverDrop').classList.remove('open');
   document.getElementById('driverBadge').style.display = 'flex';
   document.getElementById('driverBadgeName').textContent = d.name + (d.isNew ? ` (${t('newTag')})` : '');
+  if (!d.isNew && d.id) prefillFromHistory(d.id);
   checkCanStart();
+}
+
+// Pre-fill supervisor (last 30 days) and last contact phone for a returning driver
+async function prefillFromHistory(driverId) {
+  // Supervisor name: most recent inspection in last 30 days with a non-null supervisor_name_raw
+  try {
+    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const r = await fetch(`${SUPA}/rest/v1/inspections?inspector_id=eq.${driverId}&supervisor_name_raw=not.is.null&date_inspected=gte.${since}&select=supervisor_name_raw,date_inspected&order=date_inspected.desc&limit=1`, { headers: H });
+    const rows = await r.json();
+    const sup = Array.isArray(rows) && rows[0]?.supervisor_name_raw;
+    if (sup && !supervisorName) {
+      supervisorName = sup;
+      const si = document.getElementById('supervisorInput');
+      if (si && !si.value) si.value = sup;
+    }
+  } catch (e) { /* prefill is best-effort */ }
+
+  // Last contact phone used by this driver (most recent defect), cached for defect-panel prefill
+  try {
+    const r = await fetch(`${SUPA}/rest/v1/defects?reported_by_id=eq.${driverId}&contact_phone=not.is.null&select=contact_phone,reported_at&order=reported_at.desc&limit=1`, { headers: H });
+    const rows = await r.json();
+    const phone = Array.isArray(rows) && rows[0]?.contact_phone;
+    window._lastContactPhone = phone || '';
+  } catch (e) { window._lastContactPhone = ''; }
 }
 
 function clearDriver() {
@@ -714,6 +767,7 @@ function renderDefectPanel(item, resp) {
   return `<div class="defect-panel" id="dp-${item.id}">
     <div class="defect-panel-title">${t('defectLabel')}</div>
     <textarea class="defect-textarea" data-item-id="${item.id}" placeholder="${t('defectLabel')}...">${resp.notes || ''}</textarea>
+    <input class="defect-phone" type="tel" inputmode="tel" autocomplete="tel" data-item-id="${item.id}" placeholder="${t('phoneLabel')}" value="${resp.contact_phone || window._lastContactPhone || ''}">
     <div class="sev-row">
       <button class="sev-btn minor${sev === 'minor' ? ' sel' : ''}" data-item-id="${item.id}" data-sev="minor">${t('sev').minor}</button>
       <button class="sev-btn critical${sev === 'critical' ? ' sel' : ''}" data-item-id="${item.id}" data-sev="critical">${t('sev').critical}</button>
@@ -807,6 +861,17 @@ function goBack() { showScreen('screenSetup'); }
 
 // ── Submit ─────────────────────────────────────────────────────────
 async function submitInspection() {
+  // Require a contact phone for every failed (defect) item
+  const failedItems = formItems.filter(i => responses[i.id]?.value === 'fail');
+  const missingPhone = failedItems.some(i => {
+    const p = (responses[i.id]?.contact_phone || window._lastContactPhone || '').trim();
+    return !p;
+  });
+  if (missingPhone) {
+    alert(t('phoneMissing'));
+    return;
+  }
+
   showLoading(true, t('submitting'));
   try {
     await uploadDefectPhotos(asset.id);
@@ -843,6 +908,7 @@ async function submitInspection() {
         description: (lang === 'es' && item.title_es ? item.title_es : item.title) + (responses[item.id].notes ? ': ' + responses[item.id].notes : ''),
         severity: responses[item.id].severity || 'minor',
         photo_paths: photos,
+        contact_phone: (responses[item.id].contact_phone || window._lastContactPhone || '').trim() || null,
       };
     });
 
@@ -857,6 +923,7 @@ async function submitInspection() {
         p_date_inspected: new Date().toISOString(),
         p_responses: respRows,
         p_defects: defectRows,
+        p_supervisor_name: (supervisorName || '').trim() || null,
       })
     });
     const result = await rpc.json();
@@ -904,6 +971,8 @@ async function submitInspection() {
 function resetAll() {
   asset = null; teamRef = null; inspType = null; selectedDriver = null;
   formItems = []; responses = {}; defectPhotos = {};
+  supervisorName = ''; window._lastContactPhone = '';
+  const si = document.getElementById('supervisorInput'); if (si) si.value = '';
   document.getElementById('driverInput').value = '';
   document.getElementById('driverBadge').style.display = 'none';
   document.getElementById('certCheck').checked = false;
