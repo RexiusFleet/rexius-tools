@@ -178,6 +178,11 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
 .upd-type-parts    { background: var(--amber-light); color: var(--amber); }
 .upd-type-customer { background: var(--green-light); color: var(--green); }
 .upd-type-other    { background: var(--surface); color: var(--ink); border: 1px solid var(--border); }
+
+.photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; margin-top: 10px; }
+.photo-thumb { aspect-ratio: 1; background: var(--surface); border: 1px solid var(--border); overflow: hidden; display: flex; align-items: center; justify-content: center; }
+.photo-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.photo-loading { font-family: var(--mono); font-size: 16px; color: var(--gray); }
 .modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .modal-footer { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; background: var(--surface); }
 .m-btn { font-family: var(--mono); font-size: 11px; font-weight: 500; padding: 8px 16px; border: 1px solid var(--border); background: var(--paper); color: #444; cursor: pointer; transition: all .12s; }
@@ -372,6 +377,7 @@ const SUPA = 'https://toduddkyttuablausist.supabase.co';
 const KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRvZHVkZGt5dHR1YWJsYXVzaXN0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NjY5MTEsImV4cCI6MjA5NjI0MjkxMX0.ZdtMIuc9kEo7-x0Lr-y2--F1aqkurbLJ0YxeQD2ggDQ';
 const H = { apikey: KEY, Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' };
 const PASSWORD = 'rexius2024';
+const BUCKET = 'rexius-fleet-photos';
 
 let currentUser = null;
 let currentTab  = 'board';
@@ -778,10 +784,22 @@ function openDetail(id) {
       <div class="upd-list">${updates}</div>
     </div>
 
+    <div class="modal-section" style="margin-top:14px">
+      <div class="modal-label">Photos</div>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:4px">
+        <input type="file" id="photoFile" accept="image/*" capture="environment" style="font-size:12px;flex:1">
+        <button class="m-btn primary" id="photoBtn">Upload</button>
+      </div>
+      <div id="photoStatus" style="font-size:11px;color:var(--gray);margin-top:4px;display:none"></div>
+      <div class="photo-grid" id="photoGrid"></div>
+    </div>
+
     ${w.notes ? `<div class="modal-section" style="margin-top:14px"><div class="modal-label">Notes</div><div class="modal-notes">${w.notes}</div></div>` : ''}`;
 
   document.getElementById('assignBtn').addEventListener('click', () => assignMechanic());
   document.getElementById('updBtn').addEventListener('click', () => addUpdate());
+  document.getElementById('photoBtn').addEventListener('click', () => uploadWOPhoto());
+  renderPhotos(w.photos || []);
 
   const pb = document.getElementById('detailProgressBtn');
   if (w.status === 'open')             { pb.textContent = 'Mark In Progress'; pb.style.display = ''; }
@@ -841,6 +859,68 @@ async function addUpdate() {
     openDetail(woId);
   } else {
     showToast('Failed to add update: ' + JSON.stringify(result));
+  }
+}
+
+// Generate a temporary signed URL for a private-bucket object
+async function signedUrl(path) {
+  try {
+    const r = await fetch(`${SUPA}/storage/v1/object/sign/${BUCKET}/${path}`, {
+      method: 'POST',
+      headers: H,
+      body: JSON.stringify({ expiresIn: 3600 }),
+    });
+    if (!r.ok) return null;
+    const data = await r.json();
+    return data.signedURL ? `${SUPA}/storage/v1${data.signedURL}` : null;
+  } catch(e) { console.error('sign failed', e); return null; }
+}
+
+function renderPhotos(photos) {
+  const grid = document.getElementById('photoGrid');
+  if (!grid) return;
+  if (!photos.length) { grid.innerHTML = '<div class="assign-empty">No photos yet.</div>'; return; }
+  grid.innerHTML = photos.map((p, i) => `<div class="photo-thumb" id="thumb-${i}"><div class="photo-loading">…</div></div>`).join('');
+  photos.forEach(async (p, i) => {
+    const url = await signedUrl(p.path);
+    const el = document.getElementById('thumb-' + i);
+    if (!el) return;
+    el.innerHTML = url
+      ? `<a href="${url}" target="_blank" rel="noopener"><img src="${url}" alt="WO photo" loading="lazy"></a>`
+      : '<div class="photo-loading">⚠</div>';
+  });
+}
+
+async function uploadWOPhoto() {
+  if (!selectedWO) return;
+  const input = document.getElementById('photoFile');
+  const file = input.files && input.files[0];
+  if (!file) { showToast('Choose a photo first'); return; }
+  const woId = selectedWO.id;
+  const status = document.getElementById('photoStatus');
+  status.style.display = 'block';
+  status.textContent = 'Uploading...';
+  try {
+    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+    const path = `${woId}/${Date.now()}_wo_${Math.random().toString(36).slice(2)}.${ext}`;
+    const upRes = await fetch(`${SUPA}/storage/v1/object/${BUCKET}/${path}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${KEY}`, apikey: KEY, 'Content-Type': file.type },
+      body: file,
+    });
+    if (!upRes.ok) { status.textContent = 'Upload failed.'; return; }
+    const result = await rpc('add_work_order_photo', { p_wo_id: woId, p_path: path });
+    if (result?.success) {
+      showToast('Photo added');
+      rpc('log_access', { p_tool_name: 'work-orders', p_user_name: currentUser, p_action: 'add_photo', p_metadata: { wo_id: woId } });
+      await loadData(true);
+      openDetail(woId);
+    } else {
+      status.textContent = 'Saved file but failed to record: ' + JSON.stringify(result);
+    }
+  } catch(e) {
+    console.error(e);
+    status.textContent = 'Upload error.';
   }
 }
 
