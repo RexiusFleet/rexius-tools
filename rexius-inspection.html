@@ -120,15 +120,6 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
 .defect-panel-title { font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--red); margin-bottom: 8px; }
 .defect-textarea { width: 100%; font-family: var(--body); font-size: 13px; padding: 8px 10px; border: 1px solid #fca5a5; background: #fff; color: var(--ink); resize: none; min-height: 60px; outline: none; }
 .defect-textarea:focus { border-color: var(--red); }
-.confirm-head { padding: 4px 4px 12px; }
-.confirm-title { font-family: var(--display, var(--body)); font-size: 20px; font-weight: 700; color: var(--ink); }
-.confirm-sub { font-size: 13px; color: var(--gray); margin-top: 4px; line-height: 1.4; }
-.confirm-defect { padding: 10px 12px; border-left: 3px solid var(--red); background: var(--red-light, #fdecec); margin-bottom: 8px; }
-.confirm-defect-title { font-size: 14px; font-weight: 600; color: var(--ink); display: flex; align-items: center; gap: 8px; }
-.confirm-defect-sev { font-family: var(--mono); font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 1px 6px; }
-.confirm-defect-sev.sev-minor { background: var(--amber-light, #fef3c7); color: var(--amber, #b45309); }
-.confirm-defect-sev.sev-critical { background: var(--red); color: #fff; }
-.confirm-defect-note { font-size: 13px; color: #555; margin-top: 4px; line-height: 1.4; }
 .sev-row { display: flex; gap: 6px; margin-top: 8px; }
 .sev-btn { font-family: var(--mono); font-size: 10px; font-weight: 600; padding: 4px 10px; border: 1px solid var(--border); background: transparent; color: var(--gray); cursor: pointer; letter-spacing: .04em; text-transform: uppercase; transition: all .12s; }
 .sev-btn.minor.sel  { border-color: var(--amber); background: var(--amber-light); color: var(--amber); }
@@ -248,36 +239,6 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
   </div>
 </div>
 
-<!-- SCREEN 2.5: DEFECT CONFIRMATION -->
-<div class="screen" id="screenConfirm">
-  <div class="topbar">
-    <div class="topbar-brand">Rexius Fleet</div>
-    <div class="topbar-center"></div>
-    <div></div>
-  </div>
-  <div class="checklist-wrap">
-    <div class="confirm-head">
-      <div class="confirm-title" id="confirmTitle">Confirm Reported Defects</div>
-      <div class="confirm-sub" id="confirmSub">Review the issues below and provide a contact number so the shop can follow up.</div>
-    </div>
-    <div class="card" id="confirmDefectList"></div>
-    <div class="cert-box">
-      <label class="cert-text" for="confirmPhone" id="confirmPhoneLabel" style="display:block;margin-bottom:8px;">Contact phone number</label>
-      <input class="driver-input" id="confirmPhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="(541) 555-0123">
-      <div id="confirmPhoneErr" style="color:var(--red);font-size:12px;margin-top:6px;display:none"></div>
-    </div>
-    <div class="cert-box">
-      <label class="cert-label">
-        <input type="checkbox" class="cert-check" id="confirmCheck">
-        <span class="cert-text" id="confirmCertText">I confirm these defects are accurate and the contact number above is correct.</span>
-      </label>
-    </div>
-    <button class="submit-btn" id="confirmSubmitBtn" disabled>Confirm &amp; Submit</button>
-    <button class="new-btn" id="confirmBackBtn" style="margin-top:8px">Back to Checklist</button>
-    <div style="height:40px"></div>
-  </div>
-</div>
-
 <!-- SCREEN 3: SUCCESS -->
 <div class="screen" id="screenSuccess">
   <div class="topbar">
@@ -309,7 +270,6 @@ let formItems = [];
 let responses = {};
 let allPeople = [];
 let defectPhotos = {};
-let confirmPhone = '';
 
 // ── i18n ───────────────────────────────────────────────────────────
 const T = {
@@ -320,13 +280,6 @@ const T = {
     searchDriver: 'Search name...', searchAsset: 'Search asset number, make, model...',
     assetLabel: 'Select Asset', newTag: 'NEW',
     defectLabel: 'Describe defect', addPhoto: '📷  Add Photo',
-    phoneInvalid: 'Enter a valid 10-digit contact phone number',
-    confirmTitle: 'Confirm Reported Defects',
-    confirmSub: 'Review the issues below and provide a contact number so the shop can follow up.',
-    confirmPhoneLabel: 'Contact phone number',
-    confirmCert: 'I confirm these defects are accurate and the contact number above is correct.',
-    confirmSubmit: 'Confirm & Submit', confirmBack: 'Back to Checklist',
-    reviewSubmit: 'Review & Submit',
     sev: { minor: 'Minor', critical: 'Critical' },
     cert: 'I certify that I am the person named above and that this inspection was conducted by me to the best of my ability.',
     successTitle: 'Submitted', successSub: 'Inspection recorded successfully.',
@@ -340,13 +293,6 @@ const T = {
     searchDriver: 'Buscar nombre...', searchAsset: 'Buscar activo, marca, modelo...',
     assetLabel: 'Seleccionar Activo', newTag: 'NUEVO',
     defectLabel: 'Describir defecto', addPhoto: '📷  Agregar Foto',
-    phoneInvalid: 'Ingrese un teléfono de contacto válido de 10 dígitos',
-    confirmTitle: 'Confirmar Defectos Reportados',
-    confirmSub: 'Revise los problemas a continuación y proporcione un número de contacto para que el taller pueda dar seguimiento.',
-    confirmPhoneLabel: 'Número de teléfono de contacto',
-    confirmCert: 'Confirmo que estos defectos son correctos y que el número de contacto es correcto.',
-    confirmSubmit: 'Confirmar y Enviar', confirmBack: 'Volver a la Lista',
-    reviewSubmit: 'Revisar y Enviar',
     sev: { minor: 'Menor', critical: 'Crítico' },
     cert: 'Certifico que soy la persona indicada y que realicé esta inspección de la mejor manera posible.',
     successTitle: 'Enviado', successSub: 'Inspección registrada correctamente.',
@@ -363,13 +309,10 @@ document.getElementById('langEn2').addEventListener('click', e => { e.stopPropag
 document.getElementById('langEs2').addEventListener('click', e => { e.stopPropagation(); setLang('es'); });
 document.getElementById('backBtn').addEventListener('click', e => { e.stopPropagation(); goBack(); });
 document.getElementById('startBtn').addEventListener('click', e => { e.stopPropagation(); startInspection(); });
-document.getElementById('submitBtn').addEventListener('click', e => { e.stopPropagation(); proceedFromChecklist(); });
+document.getElementById('submitBtn').addEventListener('click', e => { e.stopPropagation(); submitInspection(); });
 document.getElementById('newInspBtn').addEventListener('click', e => { e.stopPropagation(); resetAll(); });
 document.getElementById('driverClearBtn').addEventListener('click', e => { e.stopPropagation(); clearDriver(); });
 document.getElementById('certCheck').addEventListener('change', () => onCertChange());
-document.getElementById('confirmCheck').addEventListener('change', () => updateConfirmSubmitState());
-document.getElementById('confirmSubmitBtn').addEventListener('click', e => { e.stopPropagation(); submitInspection(); });
-document.getElementById('confirmBackBtn').addEventListener('click', e => { e.stopPropagation(); showScreen('screenChecklist'); });
 
 const driverInput = document.getElementById('driverInput');
 driverInput.addEventListener('input', () => onDriverSearch(driverInput.value));
@@ -440,13 +383,6 @@ document.addEventListener('input', e => {
     return;
   }
 
-  // Confirmation screen contact phone
-  if (el.id === 'confirmPhone') {
-    confirmPhone = el.value;
-    updateConfirmSubmitState();
-    return;
-  }
-
   // Asset search input (dynamically injected)
   if (el.id === 'assetSearchInput') {
     onAssetSearch(el.value);
@@ -496,20 +432,8 @@ function refreshLabels() {
   if (sb) sb.textContent = t('startBtn');
   const ct = document.getElementById('certText');
   if (ct) ct.textContent = t('cert');
-  const cct = document.getElementById('confirmCertText');
-  if (cct) cct.textContent = t('confirmCert');
   const sub = document.getElementById('submitBtn');
   if (sub) sub.textContent = t('submitBtn');
-  const ctitle = document.getElementById('confirmTitle');
-  if (ctitle) ctitle.textContent = t('confirmTitle');
-  const csub = document.getElementById('confirmSub');
-  if (csub) csub.textContent = t('confirmSub');
-  const cpl = document.getElementById('confirmPhoneLabel');
-  if (cpl) cpl.textContent = t('confirmPhoneLabel');
-  const csb = document.getElementById('confirmSubmitBtn');
-  if (csb) csb.textContent = t('confirmSubmit');
-  const cbb = document.getElementById('confirmBackBtn');
-  if (cbb) cbb.textContent = t('confirmBack');
   renderTypeGrid();
   if (formItems.length) renderChecklist();
 }
@@ -578,21 +502,12 @@ function onAssetSearch(val) {
   const drop = document.getElementById('assetDrop');
   if (!drop) return;
   if (!val.trim()) { drop.classList.remove('open'); return; }
-  const q = normStr(val).replace(/^0+(?=\d)/, '');
-  const scored = [];
-  for (const a of (window._allAssets||[])) {
-    const an = normStr(a.asset_number).replace(/^0+(?=\d)/, '');
+  const q = normStr(val);
+  const results = (window._allAssets||[]).filter(a => {
+    const an = normStr(a.asset_number);
     const desc = normStr([a.year,a.make,a.model].filter(Boolean).join(' '));
-    let score;
-    if (an === q) score = 0;                 // exact asset number match
-    else if (an.startsWith(q)) score = 1;     // asset number prefix match
-    else if (an.includes(q)) score = 2;       // asset number substring match
-    else if (desc.includes(q)) score = 3;     // make/model/year match
-    else continue;
-    scored.push({ a, score });
-  }
-  scored.sort((x, y) => x.score - y.score);
-  const results = scored.map(s => s.a).slice(0, 10);
+    return an.includes(q) || desc.includes(val.toLowerCase());
+  }).slice(0, 10);
   window._assetCandidates = results;
   if (!results.length) {
     drop.innerHTML = `<div class="asset-opt"><span style="color:var(--gray);font-size:13px">No assets found</span></div>`;
@@ -696,18 +611,7 @@ function pickDriver(idx) {
   document.getElementById('driverDrop').classList.remove('open');
   document.getElementById('driverBadge').style.display = 'flex';
   document.getElementById('driverBadgeName').textContent = d.name + (d.isNew ? ` (${t('newTag')})` : '');
-  if (!d.isNew && d.id) prefillFromHistory(d.id);
   checkCanStart();
-}
-
-// Pre-fill last contact phone for a returning driver (used on the confirmation screen)
-async function prefillFromHistory(driverId) {
-  try {
-    const r = await fetch(`${SUPA}/rest/v1/defects?reported_by_id=eq.${driverId}&contact_phone=not.is.null&select=contact_phone,reported_at&order=reported_at.desc&limit=1`, { headers: H });
-    const rows = await r.json();
-    const phone = Array.isArray(rows) && rows[0]?.contact_phone;
-    window._lastContactPhone = phone || '';
-  } catch (e) { window._lastContactPhone = ''; }
 }
 
 function clearDriver() {
@@ -732,18 +636,35 @@ function checkCanStart() {
   }
 }
 
+// Resolve which form to use for an asset: asset-level override first, then team default.
+async function resolveFormId(assetObj, inspType, language) {
+  // Asset-level override (e.g. blower trucks needing different items than their team's default)
+  const af = await fetch(`${SUPA}/rest/v1/asset_inspection_forms?asset_id=eq.${assetObj.id}&inspection_type=eq.${inspType}&lang=eq.${language}&is_active=eq.true&select=form_id&limit=1`, { headers: H });
+  let formId = (await af.json())?.[0]?.form_id;
+  if (formId) return formId;
+  if (!formId && language === 'es') {
+    const af2 = await fetch(`${SUPA}/rest/v1/asset_inspection_forms?asset_id=eq.${assetObj.id}&inspection_type=eq.${inspType}&lang=eq.en&is_active=eq.true&select=form_id&limit=1`, { headers: H });
+    formId = (await af2.json())?.[0]?.form_id;
+    if (formId) return formId;
+  }
+
+  // Team-level default (existing behavior)
+  const r = await fetch(`${SUPA}/rest/v1/team_inspection_forms?team_id=eq.${assetObj.team_id}&inspection_type=eq.${inspType}&lang=eq.${language}&is_active=eq.true&select=form_id&limit=1`, { headers: H });
+  const data = await r.json();
+  formId = data?.[0]?.form_id;
+  if (!formId && language === 'es') {
+    const r2 = await fetch(`${SUPA}/rest/v1/team_inspection_forms?team_id=eq.${assetObj.team_id}&inspection_type=eq.${inspType}&lang=eq.en&is_active=eq.true&select=form_id&limit=1`, { headers: H });
+    formId = (await r2.json())?.[0]?.form_id;
+  }
+  return formId;
+}
+
 // ── Start inspection ───────────────────────────────────────────────
 async function startInspection() {
   if (!asset || !inspType || !selectedDriver) return;
   showLoading(true, t('loading'));
   try {
-    const r = await fetch(`${SUPA}/rest/v1/team_inspection_forms?team_id=eq.${asset.team_id}&inspection_type=eq.${inspType}&lang=eq.${lang}&is_active=eq.true&select=form_id&limit=1`, { headers: H });
-    const data = await r.json();
-    let formId = data?.[0]?.form_id;
-    if (!formId && lang === 'es') {
-      const r2 = await fetch(`${SUPA}/rest/v1/team_inspection_forms?team_id=eq.${asset.team_id}&inspection_type=eq.${inspType}&lang=eq.en&is_active=eq.true&select=form_id&limit=1`, { headers: H });
-      formId = (await r2.json())?.[0]?.form_id;
-    }
+    const formId = await resolveFormId(asset, inspType, lang);
     if (!formId) { showLoading(false); showError('setupError', 'No form found for this asset.'); return; }
     const ri = await fetch(`${SUPA}/rest/v1/inspection_form_items?form_id=eq.${formId}&is_active=eq.true&order=order_index`, { headers: H });
     formItems = await ri.json();
@@ -901,71 +822,8 @@ function onCertChange() {
 
 function goBack() { showScreen('screenSetup'); }
 
-// ── Phone validation helpers ───────────────────────────────────────
-function normalizePhone(raw) {
-  const digits = (raw || '').replace(/\D/g, '');
-  if (digits.length === 10) return digits;
-  if (digits.length === 11 && digits.startsWith('1')) return digits.slice(1);
-  return null;
-}
-function fmtPhoneDisplay(raw) {
-  const d = normalizePhone(raw);
-  if (!d) return raw || '';
-  return `(${d.slice(0,3)}) ${d.slice(3,6)}-${d.slice(6)}`;
-}
-
-// ── Flow: from checklist, route to confirmation (if defects) or submit ──
-function proceedFromChecklist() {
-  const failedItems = formItems.filter(i => responses[i.id]?.value === 'fail');
-  if (failedItems.length === 0) {
-    submitInspection();
-    return;
-  }
-  const listEl = document.getElementById('confirmDefectList');
-  listEl.innerHTML = failedItems.map(item => {
-    const title = (lang === 'es' && item.title_es ? item.title_es : item.title);
-    const note = responses[item.id]?.notes;
-    const sev = responses[item.id]?.severity || 'minor';
-    const sevLabel = t('sev')[sev] || sev;
-    return `<div class="confirm-defect">
-      <div class="confirm-defect-title">${title}<span class="confirm-defect-sev sev-${sev}">${sevLabel}</span></div>
-      ${note ? `<div class="confirm-defect-note">${note}</div>` : ''}
-    </div>`;
-  }).join('');
-
-  const phoneEl = document.getElementById('confirmPhone');
-  if (phoneEl && !confirmPhone && window._lastContactPhone) {
-    confirmPhone = window._lastContactPhone;
-    phoneEl.value = fmtPhoneDisplay(window._lastContactPhone);
-  }
-  document.getElementById('confirmCheck').checked = false;
-  updateConfirmSubmitState();
-  showScreen('screenConfirm');
-}
-
-function updateConfirmSubmitState() {
-  const phoneOk = normalizePhone(document.getElementById('confirmPhone')?.value) !== null;
-  const confirmed = document.getElementById('confirmCheck')?.checked;
-  const btn = document.getElementById('confirmSubmitBtn');
-  if (btn) btn.disabled = !(phoneOk && confirmed);
-  const err = document.getElementById('confirmPhoneErr');
-  const raw = document.getElementById('confirmPhone')?.value || '';
-  if (err) {
-    if (raw && !phoneOk) { err.textContent = t('phoneInvalid'); err.style.display = 'block'; }
-    else { err.style.display = 'none'; }
-  }
-}
-
 // ── Submit ─────────────────────────────────────────────────────────
 async function submitInspection() {
-  const failures = formItems.filter(i => responses[i.id]?.value === 'fail');
-
-  let phone = null;
-  if (failures.length > 0) {
-    phone = normalizePhone(document.getElementById('confirmPhone')?.value);
-    if (!phone) { alert(t('phoneInvalid')); return; }
-  }
-
   showLoading(true, t('submitting'));
   try {
     await uploadDefectPhotos(asset.id);
@@ -980,8 +838,7 @@ async function submitInspection() {
       driverId = await cr.json();
     }
 
-    const tf = await fetch(`${SUPA}/rest/v1/team_inspection_forms?team_id=eq.${asset.team_id}&inspection_type=eq.${inspType}&lang=eq.${lang}&is_active=eq.true&select=form_id&limit=1`, { headers: H });
-    const formId = (await tf.json())?.[0]?.form_id;
+    const formId = await resolveFormId(asset, inspType, lang);
     if (!formId) throw new Error('No form found');
 
     const respRows = formItems.filter(i => i.item_type !== 'signature').map(item => {
@@ -995,13 +852,13 @@ async function submitInspection() {
       };
     });
 
+    const failures = formItems.filter(i => responses[i.id]?.value === 'fail');
     const defectRows = failures.map(item => {
       const photos = (defectPhotos[item.id] || []).filter(p => p.storagePath).map(p => p.storagePath);
       return {
         description: (lang === 'es' && item.title_es ? item.title_es : item.title) + (responses[item.id].notes ? ': ' + responses[item.id].notes : ''),
         severity: responses[item.id].severity || 'minor',
         photo_paths: photos,
-        contact_phone: phone,
       };
     });
 
@@ -1021,8 +878,30 @@ async function submitInspection() {
     const result = await rpc.json();
     if (!result?.success) throw new Error('Submission failed: ' + JSON.stringify(result));
 
-    // Work orders are auto-created inside submit_inspection_v2 (one per defect, with
-    // correct severity→priority mapping and shop routing). No client-side WO creation.
+    // Auto-create work orders for each defect
+    if (failures.length > 0) {
+      for (const item of failures) {
+        const resp = responses[item.id];
+        const description = (lang === 'es' && item.title_es ? item.title_es : item.title) +
+          (resp.notes ? ': ' + resp.notes : '');
+        const priority = resp.severity === 'critical' ? 'high' : 'low';
+        try {
+          await fetch(`${SUPA}/rest/v1/rpc/create_work_order`, {
+            method: 'POST', headers: H,
+            body: JSON.stringify({
+              p_asset_id:    asset.id,
+              p_description: description,
+              p_priority:    priority,
+              p_mechanic_id: null,
+              p_date_opened: new Date().toISOString().slice(0, 10),
+              p_notes:       `Auto-created from inspection. Severity: ${resp.severity || 'minor'}.`,
+              p_parts_cost:  null,
+              p_created_by:  selectedDriver?.name || 'Inspection Form',
+            })
+          });
+        } catch(e) { console.error('Work order creation failed:', e); }
+      }
+    }
 
     showLoading(false);
     showScreen('screenSuccess');
@@ -1041,9 +920,6 @@ async function submitInspection() {
 function resetAll() {
   asset = null; teamRef = null; inspType = null; selectedDriver = null;
   formItems = []; responses = {}; defectPhotos = {};
-  confirmPhone = ''; window._lastContactPhone = '';
-  const cp = document.getElementById('confirmPhone'); if (cp) cp.value = '';
-  const cc = document.getElementById('confirmCheck'); if (cc) cc.checked = false;
   document.getElementById('driverInput').value = '';
   document.getElementById('driverBadge').style.display = 'none';
   document.getElementById('certCheck').checked = false;
