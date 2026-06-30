@@ -579,11 +579,20 @@ function onAssetSearch(val) {
   if (!drop) return;
   if (!val.trim()) { drop.classList.remove('open'); return; }
   const q = normStr(val).replace(/^0+(?=\d)/, '');
-  const results = (window._allAssets||[]).filter(a => {
+  const scored = [];
+  for (const a of (window._allAssets||[])) {
     const an = normStr(a.asset_number).replace(/^0+(?=\d)/, '');
     const desc = normStr([a.year,a.make,a.model].filter(Boolean).join(' '));
-    return an.includes(q) || desc.includes(q);
-  }).slice(0, 10);
+    let score;
+    if (an === q) score = 0;                 // exact asset number match
+    else if (an.startsWith(q)) score = 1;     // asset number prefix match
+    else if (an.includes(q)) score = 2;       // asset number substring match
+    else if (desc.includes(q)) score = 3;     // make/model/year match
+    else continue;
+    scored.push({ a, score });
+  }
+  scored.sort((x, y) => x.score - y.score);
+  const results = scored.map(s => s.a).slice(0, 10);
   window._assetCandidates = results;
   if (!results.length) {
     drop.innerHTML = `<div class="asset-opt"><span style="color:var(--gray);font-size:13px">No assets found</span></div>`;
