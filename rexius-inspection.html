@@ -153,7 +153,7 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
 .success-icon { font-size: 56px; }
 .success-title { font-family: var(--display); font-size: 28px; font-weight: 700; letter-spacing: .02em; text-transform: uppercase; color: var(--green); }
 .success-sub { font-size: 14px; color: var(--gray); line-height: 1.6; max-width: 280px; }
-.success-defect { font-family: var(--mono); font-size: 12px; color: var(--red); margin-top: 4px; }
+.success-defect { font-family: var(--mono); font-size: 12px; color: var(--red); margin-top: 4px; width: 100%; max-width: 400px; }
 .new-btn { font-family: var(--display); font-size: 14px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 12px 28px; border: 2px solid var(--green); background: transparent; color: var(--green); cursor: pointer; margin-top: 12px; transition: all .12s; }
 .new-btn:hover { background: var(--green); color: #fff; }
 
@@ -895,38 +895,28 @@ async function submitInspection() {
     const result = await rpc.json();
     if (!result?.success) throw new Error('Submission failed: ' + JSON.stringify(result));
 
-    // Auto-create work orders for each defect
-    if (failures.length > 0) {
-      for (const item of failures) {
-        const resp = responses[item.id];
-        const description = (lang === 'es' && item.title_es ? item.title_es : item.title) +
-          (resp.notes ? ': ' + resp.notes : '');
-        const priority = resp.severity === 'critical' ? 'high' : 'low';
-        try {
-          await fetch(`${SUPA}/rest/v1/rpc/create_work_order`, {
-            method: 'POST', headers: H,
-            body: JSON.stringify({
-              p_asset_id:    asset.id,
-              p_description: description,
-              p_priority:    priority,
-              p_mechanic_id: null,
-              p_date_opened: new Date().toISOString().slice(0, 10),
-              p_notes:       `Auto-created from inspection. Severity: ${resp.severity || 'minor'}.`,
-              p_parts_cost:  null,
-              p_created_by:  selectedDriver?.name || 'Inspection Form',
-            })
-          });
-        } catch(e) { console.error('Work order creation failed:', e); }
-      }
-    }
-
     showLoading(false);
     showScreen('screenSuccess');
     document.getElementById('successTitle').textContent = t('successTitle');
     document.getElementById('successSub').textContent = t('successSub');
     document.getElementById('newInspBtn').textContent = t('newInsp');
     if (failures.length) {
-      document.getElementById('successDefect').textContent = `${failures.length} defect${failures.length > 1 ? 's' : ''} reported.`;
+      document.getElementById('successDefect').innerHTML =
+        `<div style="margin-top:12px;text-align:left">
+          <div style="font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--red);margin-bottom:8px">
+            ${failures.length} defect${failures.length > 1 ? 's' : ''} reported — work order${failures.length > 1 ? 's' : ''} opened
+          </div>
+          ${failures.map(item => {
+            const resp = responses[item.id];
+            const sev = resp?.severity || 'minor';
+            const note = resp?.notes ? ': ' + resp.notes : '';
+            const sevColor = sev === 'critical' ? 'var(--red)' : 'var(--amber)';
+            return `<div style="background:#fff;border-left:3px solid ${sevColor};padding:8px 10px;margin-bottom:6px;font-size:13px">
+              <div style="font-weight:600;color:var(--ink)">${item.title}${note}</div>
+              <div style="font-family:var(--mono);font-size:10px;color:${sevColor};margin-top:2px;text-transform:uppercase">${sev} · work order opened</div>
+            </div>`;
+          }).join('')}
+        </div>`;
     }
   } catch(e) {
     showLoading(false);
