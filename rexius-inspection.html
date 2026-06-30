@@ -531,7 +531,7 @@ function pickAsset(idx) {
   setAsset(a);
 }
 
-function setAsset(a) {
+async function setAsset(a) {
   asset = a;
   teamRef = a.teams?.import_ref || null;
   const desc = [a.year,a.make,a.model].filter(Boolean).join(' ');
@@ -542,16 +542,33 @@ function setAsset(a) {
       ${desc ? `<div class="asset-hero-desc">${desc}</div>` : ''}
       ${teamName ? `<div class="asset-hero-team">${teamName}</div>` : ''}
     </div>`;
-  renderTypeGrid();
+  await renderTypeGrid();
   checkCanStart();
 }
 
 // ── Inspection types ───────────────────────────────────────────────
-function getTypes() {
+// Cache: does this asset have any asset-level form override? (e.g. blower trucks)
+// Assets with an override use a dedicated form set and don't tow trailers, so the
+// generic Trailer Pre/Post options don't apply to them.
+let _assetOverrideCache = {};
+async function assetHasOverride(assetId) {
+  if (assetId in _assetOverrideCache) return _assetOverrideCache[assetId];
+  try {
+    const r = await fetch(`${SUPA}/rest/v1/asset_inspection_forms?asset_id=eq.${assetId}&is_active=eq.true&select=id&limit=1`, { headers: H });
+    const data = await r.json();
+    _assetOverrideCache[assetId] = Array.isArray(data) && data.length > 0;
+  } catch(e) {
+    _assetOverrideCache[assetId] = false;
+  }
+  return _assetOverrideCache[assetId];
+}
+
+async function getTypes() {
   const ref = (teamRef||'').toLowerCase();
   const num = (asset?.asset_number||'').toLowerCase();
   if (ref.includes('equipment')) return ['equip_preshift','equip_postshift'];
   if (num.includes('trailer')) return ['trailer_pretrip','trailer_posttrip'];
+  if (asset?.id && await assetHasOverride(asset.id)) return ['vehicle_pretrip','vehicle_posttrip'];
   return ['vehicle_pretrip','vehicle_posttrip','trailer_pretrip','trailer_posttrip'];
 }
 
@@ -564,10 +581,10 @@ const TYPE_DEF = {
   equip_postshift:  { icon:'🌆', en:'Post-Shift', es:'Post-Turno',  sub_en:'End of shift',   sub_es:'Fin del turno' },
 };
 
-function renderTypeGrid() {
+async function renderTypeGrid() {
   const grid = document.getElementById('typeGrid');
   if (!grid || !asset) return;
-  const types = getTypes();
+  const types = await getTypes();
   // Use data-type attribute instead of inline onclick
   grid.innerHTML = types.map(type => {
     const d = TYPE_DEF[type] || {};
