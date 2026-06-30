@@ -578,11 +578,11 @@ function onAssetSearch(val) {
   const drop = document.getElementById('assetDrop');
   if (!drop) return;
   if (!val.trim()) { drop.classList.remove('open'); return; }
-  const q = normStr(val);
+  const q = normStr(val).replace(/^0+(?=\d)/, '');
   const results = (window._allAssets||[]).filter(a => {
-    const an = normStr(a.asset_number);
+    const an = normStr(a.asset_number).replace(/^0+(?=\d)/, '');
     const desc = normStr([a.year,a.make,a.model].filter(Boolean).join(' '));
-    return an.includes(q) || desc.includes(val.toLowerCase());
+    return an.includes(q) || desc.includes(q);
   }).slice(0, 10);
   window._assetCandidates = results;
   if (!results.length) {
