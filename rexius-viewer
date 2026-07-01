@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rexius Fleet — Viewer</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@300;400;500;600&display=swap');
+
+:root {
+  --ink: #0d0d0d;
+  --paper: #fafaf8;
+  --surface: #f3f2ee;
+  --border: #d8d6d0;
+  --green: #1a5c32;
+  --green-mid: #2d7d4a;
+  --green-light: #e8f5ee;
+  --red: #8b1a1a;
+  --red-light: #fdf0f0;
+  --amber: #7a4a00;
+  --amber-light: #fef8ec;
+  --blue: #1a3c6e;
+  --blue-light: #eef3fb;
+  --gray: #6b7280;
+  --mono: 'IBM Plex Mono', monospace;
+  --display: 'Barlow Condensed', sans-serif;
+  --body: 'Barlow', sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body { font-family: var(--body); background: var(--surface); color: var(--ink); -webkit-font-smoothing: antialiased; }
+
+/* ── TOPBAR ── */
+.topbar { background: var(--ink); color: var(--paper); padding: 0 20px; height: 50px; display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid var(--green); position: sticky; top: 0; z-index: 100; }
+.topbar-left { display: flex; align-items: center; gap: 16px; }
+.topbar-brand { font-family: var(--display); font-size: 14px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--green); }
+.topbar-title { font-family: var(--display); font-size: 13px; font-weight: 500; letter-spacing: .06em; color: rgba(255,255,255,.5); text-transform: uppercase; }
+.topbar-right { display: flex; align-items: center; gap: 10px; }
+.nav-link { font-family: var(--mono); font-size: 11px; color: rgba(255,255,255,.35); background: none; border: 1px solid rgba(255,255,255,.12); padding: 4px 9px; cursor: pointer; transition: all .12s; text-decoration: none; display: inline-block; }
+.nav-link:hover { border-color: var(--green); color: var(--green); }
+
+/* ── TOOLBAR ── */
+.toolbar { padding: 12px 20px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; background: var(--paper); border-bottom: 1px solid var(--border); position: sticky; top: 50px; z-index: 90; }
+.tb-search { font-family: var(--body); font-size: 13px; padding: 7px 11px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); outline: none; width: 200px; }
+.tb-search:focus { border-color: var(--green); background: var(--paper); }
+.tb-select { font-family: var(--body); font-size: 13px; padding: 7px 11px; border: 1px solid var(--border); background: var(--paper); color: var(--ink); outline: none; cursor: pointer; }
+.tb-select:focus { border-color: var(--green); }
+.tb-date { font-family: var(--mono); font-size: 12px; padding: 7px 10px; border: 1px solid var(--border); background: var(--paper); color: var(--ink); outline: none; cursor: pointer; }
+.tb-date:focus { border-color: var(--green); }
+.tb-sep { width: 1px; height: 22px; background: var(--border); flex-shrink: 0; }
+.tb-btn { font-family: var(--mono); font-size: 11px; font-weight: 500; padding: 7px 14px; border: 1px solid var(--border); background: var(--paper); color: #444; cursor: pointer; transition: all .12s; white-space: nowrap; letter-spacing: .02em; }
+.tb-btn:hover { border-color: var(--green); color: var(--green); }
+.tb-btn.primary { background: var(--green); border-color: var(--green); color: #fff; }
+.tb-btn.primary:hover { opacity: .88; }
+.tb-btn.active { background: var(--green-light); border-color: var(--green); color: var(--green); }
+.tb-label { font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--gray); }
+
+/* ── STAT ROW ── */
+.content { flex: 1; padding: 20px; }
+.stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 18px; }
+.stat { background: var(--paper); border: 1px solid var(--border); padding: 12px 14px; position: relative; }
+.stat::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--border); }
+.stat.green::before { background: var(--green); }
+.stat.red::before { background: var(--red); }
+.stat.amber::before { background: var(--amber); }
+.stat.blue::before { background: var(--blue); }
+.stat-n { font-family: var(--display); font-size: 30px; font-weight: 700; line-height: 1; }
+.stat-l { font-family: var(--mono); font-size: 10px; font-weight: 500; letter-spacing: .1em; text-transform: uppercase; color: var(--gray); margin-top: 3px; }
+
+/* ── TABLE ── */
+.table-wrap { background: var(--paper); border: 1px solid var(--border); overflow-x: auto; }
+.insp-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.insp-table th { font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--gray); background: var(--surface); padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; cursor: pointer; user-select: none; }
+.insp-table th:hover { color: var(--ink); }
+.insp-table th .sort-arrow { opacity: .3; margin-left: 4px; }
+.insp-table th.sorted .sort-arrow { opacity: 1; color: var(--green); }
+.insp-table td { padding: 9px 12px; border-bottom: 1px solid var(--surface); vertical-align: middle; }
+.insp-table tr:last-child td { border-bottom: none; }
+.insp-table tbody tr { cursor: pointer; transition: background .08s; }
+.insp-table tbody tr:hover td { background: var(--surface); }
+.insp-table tbody tr.expanded td { background: var(--green-light); }
+
+/* Expand row */
+.expand-row td { padding: 0; cursor: default; }
+.expand-inner { padding: 14px 16px; border-top: 1px solid var(--border); background: var(--paper); }
+.expand-row:hover td { background: var(--paper) !important; }
+
+/* ── BADGES ── */
+.mono-tag { font-family: var(--mono); font-size: 10px; font-weight: 600; padding: 2px 7px; letter-spacing: .04em; text-transform: uppercase; }
+.tag-passed { background: var(--green-light); color: var(--green); }
+.tag-failed { background: var(--red-light); color: var(--red); }
+.tag-in_progress { background: var(--amber-light); color: var(--amber); }
+.tag-group { background: var(--blue-light); color: var(--blue); }
+.tag-form { background: var(--surface); color: var(--gray); border: 1px solid var(--border); }
+
+.fail-dot { display: inline-block; font-family: var(--mono); font-size: 11px; font-weight: 600; color: var(--red); }
+.asset-num { font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--ink); }
+.vehicle-desc { font-size: 12px; color: var(--gray); margin-top: 1px; }
+.inspector-name { font-size: 13px; }
+
+/* ── DETAIL PANEL ── */
+.detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 14px; }
+@media (max-width: 700px) { .detail-grid { grid-template-columns: 1fr; } }
+.detail-section { }
+.detail-label { font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--gray); margin-bottom: 6px; }
+.detail-value { font-size: 13px; color: var(--ink); }
+
+.response-list { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
+.resp-item { display: flex; align-items: flex-start; gap: 10px; padding: 6px 9px; border: 1px solid var(--border); background: var(--surface); }
+.resp-item.fail { border-left: 3px solid var(--red); background: var(--red-light); }
+.resp-item.pass { border-left: 3px solid var(--green); }
+.resp-title { font-size: 12px; color: var(--ink); flex: 1; }
+.resp-pf { font-family: var(--mono); font-size: 10px; font-weight: 700; padding: 2px 6px; white-space: nowrap; }
+.resp-pass { background: var(--green-light); color: var(--green); }
+.resp-fail { background: var(--red-light); color: var(--red); }
+.resp-notes { font-size: 11px; color: #555; margin-top: 3px; font-style: italic; }
+.resp-val { font-family: var(--mono); font-size: 11px; color: var(--gray); }
+
+.expand-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+.expand-tab { font-family: var(--mono); font-size: 11px; font-weight: 600; letter-spacing: .04em; padding: 7px 14px; cursor: pointer; color: var(--gray); border-bottom: 2px solid transparent; transition: all .1s; }
+.expand-tab:hover { color: var(--ink); }
+.expand-tab.active { color: var(--green); border-bottom-color: var(--green); }
+
+/* ── EMPTY / LOADING ── */
+.empty { text-align: center; padding: 48px 20px; color: var(--gray); }
+.empty-icon { font-size: 32px; opacity: .3; margin-bottom: 8px; }
+.empty p { font-size: 13px; font-family: var(--mono); }
+.loading-row td { text-align: center; padding: 32px; font-family: var(--mono); font-size: 12px; color: var(--gray); }
+
+/* ── SPINNER ── */
+.spinner { display: inline-block; width: 13px; height: 13px; border: 2px solid var(--border); border-top-color: var(--green); border-radius: 50%; animation: spin .6s linear infinite; vertical-align: middle; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── PAGINATION ── */
+.pager { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--border); font-family: var(--mono); font-size: 11px; color: var(--gray); background: var(--paper); }
+.pager-btn { font-family: var(--mono); font-size: 11px; padding: 5px 12px; border: 1px solid var(--border); background: var(--paper); color: var(--ink); cursor: pointer; }
+.pager-btn:hover { border-color: var(--green); color: var(--green); }
+.pager-btn:disabled { opacity: .35; cursor: not-allowed; }
+.pager-info { flex: 1; text-align: center; }
+
+/* ── RESULT COUNT ── */
+.result-count { font-family: var(--mono); font-size: 11px; color: var(--gray); margin-left: auto; }
+
+/* ── TOAST ── */
+.toast { position: fixed; bottom: 20px; right: 20px; background: var(--ink); color: var(--paper); font-family: var(--mono); font-size: 12px; padding: 10px 16px; border-left: 3px solid var(--green); opacity: 0; transform: translateY(6px); transition: all .2s; z-index: 999; pointer-events: none; }
+.toast.show { opacity: 1; transform: none; }
+
+/* ── LOGIN ── */
+#loginScreen { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--ink); background-image: repeating-linear-gradient(0deg,transparent,transparent 39px,rgba(255,255,255,.03) 39px,rgba(255,255,255,.03) 40px), repeating-linear-gradient(90deg,transparent,transparent 39px,rgba(255,255,255,.03) 39px,rgba(255,255,255,.03) 40px); }
+.login-box { background: var(--paper); border: 1px solid #333; width: 100%; max-width: 400px; padding: 40px; }
+.login-wordmark { font-family: var(--display); font-size: 11px; font-weight: 600; letter-spacing: .25em; text-transform: uppercase; color: var(--green); margin-bottom: 6px; }
+.login-title { font-family: var(--display); font-size: 32px; font-weight: 700; color: var(--ink); margin-bottom: 4px; line-height: 1; }
+.login-sub { font-size: 13px; color: #666; margin-bottom: 28px; }
+.login-divider { height: 1px; background: var(--border); margin-bottom: 24px; }
+.login-label { display: block; font-family: var(--mono); font-size: 11px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: #555; margin-bottom: 6px; }
+.login-input { width: 100%; font-family: var(--body); font-size: 15px; padding: 11px 14px; border: 1px solid var(--border); background: var(--paper); color: var(--ink); margin-bottom: 14px; outline: none; transition: border-color .15s; }
+.login-input:focus { border-color: var(--green); }
+.login-btn { width: 100%; font-family: var(--display); font-size: 16px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 13px; border: none; background: var(--ink); color: var(--paper); cursor: pointer; transition: background .12s; margin-top: 4px; }
+.login-btn:hover { background: var(--green); }
+.login-err { font-size: 12px; color: var(--red); margin-top: 8px; display: none; }
+.login-err.show { display: block; }
+
+#appShell { display: none; flex-direction: column; min-height: 100vh; }
+#appShell.active { display: flex; }
+.topbar-user { font-family: var(--mono); font-size: 11px; color: rgba(255,255,255,.4); }
+.topbar-user span { color: var(--green); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="login-wordmark">Rexius Forest By-Products</div>
+    <div class="login-title">Rexius Viewer</div>
+    <div class="login-sub">Inspection log &amp; defect review</div>
+    <div class="login-divider"></div>
+    <label class="login-label">Your name</label>
+    <input class="login-input" id="loginName" placeholder="First Last" autocomplete="name">
+    <label class="login-label">Password</label>
+    <input class="login-input" id="loginPass" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="login-btn" onclick="doLogin()">View Inspections</button>
+    <div class="login-err" id="loginErr">Incorrect password or name required.</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="appShell">
+
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="topbar-brand">Rexius Fleet</div>
+    <div class="topbar-title">Viewer</div>
+  </div>
+  <div class="topbar-right">
+    <div class="topbar-user">Signed in as <span id="topUser">—</span></div>
+    <a class="nav-link" href="rexius-work-orders.html">Work Orders</a>
+    <a class="nav-link" href="rexius-notifications.html">Notifications</a>
+    <a class="nav-link" href="rexius-inspection.html">Submit Inspection</a>
+    <button class="nav-link" onclick="doLogout()">Sign out</button>
+  </div>
+</div>
+
+<div class="toolbar">
+  <!-- Search -->
+  <input class="tb-search" id="searchBox" placeholder="Asset, inspector, vehicle…" oninput="applyFilters()">
+
+  <div class="tb-sep"></div>
+
+  <!-- Group -->
+  <span class="tb-label">Group</span>
+  <select class="tb-select" id="filterGroup" onchange="applyFilters()">
+    <option value="">All groups</option>
+    <option value="B">B</option>
+    <option value="C">C</option>
+    <option value="G">G</option>
+    <option value="L">L</option>
+    <option value="M">M</option>
+    <option value="BLOWER">Blower</option>
+  </select>
+
+  <!-- Status -->
+  <select class="tb-select" id="filterStatus" onchange="applyFilters()">
+    <option value="">All statuses</option>
+    <option value="passed">Passed</option>
+    <option value="failed">Failed</option>
+    <option value="in_progress">In Progress</option>
+  </select>
+
+  <!-- Form type -->
+  <select class="tb-select" id="filterForm" onchange="applyFilters()">
+    <option value="">All form types</option>
+  </select>
+
+  <!-- Inspector -->
+  <select class="tb-select" id="filterInspector" onchange="applyFilters()">
+    <option value="">All inspectors</option>
+  </select>
+
+  <div class="tb-sep"></div>
+
+  <!-- Date range -->
+  <span class="tb-label">From</span>
+  <input class="tb-date" type="date" id="dateFrom" onchange="applyFilters()">
+  <span class="tb-label">To</span>
+  <input class="tb-date" type="date" id="dateTo" onchange="applyFilters()">
+
+  <div class="tb-sep"></div>
+
+  <!-- Fails only toggle -->
+  <button class="tb-btn" id="failsOnlyBtn" onclick="toggleFailsOnly()">Defects only</button>
+
+  <!-- Reset -->
+  <button class="tb-btn" onclick="resetFilters()">Clear filters</button>
+
+  <div class="tb-sep"></div>
+
+  <span class="result-count" id="resultCount">—</span>
+  <span id="loadSpinner" style="display:none"><span class="spinner"></span></span>
+
+  <div class="tb-sep"></div>
+  <button class="tb-btn primary" onclick="downloadXLSX()">↓ Excel</button>
+</div>
+
+<div class="content">
+
+  <!-- Stats row -->
+  <div class="stat-row" id="statRow">
+    <div class="stat green"><div class="stat-n" id="statTotal">—</div><div class="stat-l">Total</div></div>
+    <div class="stat green"><div class="stat-n" id="statPassed">—</div><div class="stat-l">Passed</div></div>
+    <div class="stat red"><div class="stat-n" id="statFailed">—</div><div class="stat-l">Failed</div></div>
+    <div class="stat amber"><div class="stat-n" id="statDefects">—</div><div class="stat-l">Defects</div></div>
+    <div class="stat blue"><div class="stat-n" id="statInspectors">—</div><div class="stat-l">Inspectors</div></div>
+    <div class="stat blue"><div class="stat-n" id="statAssets">—</div><div class="stat-l">Assets</div></div>
+  </div>
+
+  <!-- Table -->
+  <div class="table-wrap">
+    <table class="insp-table" id="inspTable">
+      <thead>
+        <tr>
+          <th data-col="date_inspected" onclick="sortBy('date_inspected')">Date / Time <span class="sort-arrow">↕</span></th>
+          <th data-col="asset_number" onclick="sortBy('asset_number')">Asset <span class="sort-arrow">↕</span></th>
+          <th data-col="asset_group" onclick="sortBy('asset_group')">Group <span class="sort-arrow">↕</span></th>
+          <th data-col="inspector_name" onclick="sortBy('inspector_name')">Inspector <span class="sort-arrow">↕</span></th>
+          <th data-col="form_name" onclick="sortBy('form_name')">Form <span class="sort-arrow">↕</span></th>
+          <th data-col="status" onclick="sortBy('status')">Result <span class="sort-arrow">↕</span></th>
+          <th data-col="fail_count" onclick="sortBy('fail_count')" style="text-align:right">Fails <span class="sort-arrow">↕</span></th>
+          <th data-col="duration_seconds" onclick="sortBy('duration_seconds')" style="text-align:right">Duration <span class="sort-arrow">↕</span></th>
+        </tr>
+      </thead>
+      <tbody id="inspBody">
+        <tr class="loading-row"><td colspan="8"><span class="spinner"></span> Loading inspections…</td></tr>
+      </tbody>
+    </table>
+    <div class="pager" id="pager" style="display:none">
+      <button class="pager-btn" id="prevBtn" onclick="changePage(-1)">← Prev</button>
+      <span class="pager-info" id="pagerInfo"></span>
+      <button class="pager-btn" id="nextBtn" onclick="changePage(1)">Next →</button>
+    </div>
+  </div>
+</div>
+
+</div><!-- /appShell -->
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPA = 'https://toduddkyttuablausist.supabase.co';
+const KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRvZHVkZGt5dHR1YWJsYXVzaXN0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NjY5MTEsImV4cCI6MjA5NjI0MjkxMX0.ZdtMIuc9kEo7-x0Lr-y2--F1aqkurbLJ0YxeQD2ggDQ';
+const H = { apikey: KEY, Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' };
+const PASSWORD = 'rexius2024';
+
+let currentUser = null;
+
+// ── Login / Logout ─────────────────────────────────────────────────────
+function doLogin() {
+  const name = document.getElementById('loginName').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  const err  = document.getElementById('loginErr');
+  if (!name) { err.textContent = 'Please enter your name.'; err.classList.add('show'); return; }
+  if (pass !== PASSWORD) { err.textContent = 'Incorrect password.'; err.classList.add('show'); return; }
+  currentUser = name;
+  err.classList.remove('show');
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('appShell').classList.add('active');
+  document.getElementById('topUser').textContent = name;
+  fetch(`${SUPA}/rest/v1/rpc/log_access`, { method: 'POST', headers: H, body: JSON.stringify({ p_tool_name: 'inspections', p_user_name: name, p_action: 'login' }) }).catch(()=>{});
+  init();
+}
+
+function doLogout() {
+  fetch(`${SUPA}/rest/v1/rpc/log_access`, { method: 'POST', headers: H, body: JSON.stringify({ p_tool_name: 'inspections', p_user_name: currentUser, p_action: 'logout' }) }).catch(()=>{});
+  location.reload();
+}
+
+// ── Excel export ───────────────────────────────────────────────────────
+function downloadXLSX() {
+  if (!filtered.length) { showToast('Nothing to export'); return; }
+  const from = document.getElementById('dateFrom').value;
+  const to   = document.getElementById('dateTo').value;
+  const rows = filtered.map(r => ({
+    'Date':       r.date_inspected ? new Date(r.date_inspected).toLocaleString('en-US', { month:'short', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit', hour12:true }) : '',
+    'Asset':      r.asset_number,
+    'Group':      r.asset_group || '',
+    'Year':       r.year || '',
+    'Make':       r.make || '',
+    'Model':      r.model || '',
+    'Inspector':  r.inspector_name,
+    'Form':       r.form_name,
+    'Result':     r.status,
+    'Fail Items': r.fail_count,
+    'Duration':   r.duration_seconds ? formatDuration(r.duration_seconds) : '',
+  }));
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws['!cols'] = [22, 10, 7, 6, 10, 18, 18, 28, 10, 10, 10].map(w => ({ wch: w }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Inspections');
+  XLSX.writeFile(wb, `rexius_inspections_${from}_to_${to}.xlsx`);
+  showToast(`Exported ${filtered.length} inspections`);
+  fetch(`${SUPA}/rest/v1/rpc/log_access`, { method: 'POST', headers: H, body: JSON.stringify({ p_tool_name: 'inspections', p_user_name: currentUser, p_action: 'export_xlsx', p_metadata: { count: filtered.length } }) }).catch(()=>{});
+}
+
+// ── State ──────────────────────────────────────────────────────────────
+let allRows = [];       // all fetched inspections
+let filtered = [];      // after client-side filter
+let sortCol = 'date_inspected';
+let sortDir = -1;       // -1 = desc, 1 = asc
+let failsOnly = false;
+let expandedId = null;
+let expandedTab = 'responses';  // 'responses' | 'details'
+let currentPage = 1;
+const PAGE_SIZE = 50;
+
+// ── Init (called after login) ──────────────────────────────────────────
+async function init() {
+  setDefaultDates();
+  await loadInspections();
+}
+
+function setDefaultDates() {
+  const today = new Date();
+  const prior = new Date(today);
+  prior.setDate(prior.getDate() - 30);
+  document.getElementById('dateFrom').value = prior.toISOString().slice(0,10);
+  document.getElementById('dateTo').value   = today.toISOString().slice(0,10);
+}
+
+// ── Load all inspections ───────────────────────────────────────────────
+async function loadInspections() {
+  showSpinner(true);
+  try {
+    // Fetch inspections with joins via PostgREST
+    const from = document.getElementById('dateFrom').value;
+    const to   = document.getElementById('dateTo').value;
+
+    let url = `${SUPA}/rest/v1/inspections?select=id,status,date_inspected,duration_seconds,supervisor_name_raw,form_id,assets(asset_number,make,model,year,asset_subtype),people(first_name,last_name),inspection_forms(name)&order=date_inspected.desc&limit=2000`;
+    if (from) url += `&date_inspected=gte.${from}T00:00:00`;
+    if (to)   url += `&date_inspected=lte.${to}T23:59:59`;
+
+    const res = await fetch(url, { headers: H });
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+
+    // Fetch fail counts for all inspections in range (one query)
+    const failsMap = await loadFailCounts(from, to);
+
+    // Shape rows
+    allRows = data.map(i => {
+      const assetNum = i.assets?.asset_number || '—';
+      // Extract group prefix: letters at start
+      let group = null;
+      const m = assetNum.match(/^([A-Za-z]+)/);
+      if (m) group = m[1].toUpperCase();
+      // Blower trucks have numeric-only asset numbers
+      if (!group && /^\d+$/.test(assetNum.trim())) group = 'BLOWER';
+
+      return {
+        id: i.id,
+        status: i.status || 'in_progress',
+        date_inspected: i.date_inspected,
+        duration_seconds: i.duration_seconds,
+        asset_number: assetNum,
+        asset_group: group,
+        make: i.assets?.make || '',
+        model: i.assets?.model || '',
+        year: i.assets?.year || '',
+        inspector_name: i.people ? `${i.people.first_name || ''} ${i.people.last_name || ''}`.trim() : '—',
+        form_name: i.inspection_forms?.name || '—',
+        form_id: i.form_id,
+        fail_count: failsMap[i.id] || 0,
+        supervisor: i.supervisor_name_raw || '',
+      };
+    });
+
+    populateDropdowns();
+    applyFilters();
+  } catch(e) {
+    console.error(e);
+    showToast('Failed to load inspections');
+    document.getElementById('inspBody').innerHTML = `<tr class="loading-row"><td colspan="8" style="color:var(--red)">Error loading data. Check console.</td></tr>`;
+  }
+  showSpinner(false);
+}
+
+// Fetch fail counts per inspection as a single aggregation query
+async function loadFailCounts(from, to) {
+  try {
+    // Get inspection_responses where pass_fail_value = fail, grouped by inspection_id
+    // We do this via a raw aggregate via RPC workaround: just fetch the response rows we need
+    let url = `${SUPA}/rest/v1/inspection_responses?select=inspection_id&pass_fail_value=eq.fail`;
+    const res = await fetch(url, { headers: { ...H, 'Range-Unit': 'items', 'Range': '0-9999' } });
+    if (!res.ok) return {};
+    const rows = await res.json();
+    const map = {};
+    rows.forEach(r => { map[r.inspection_id] = (map[r.inspection_id] || 0) + 1; });
+    return map;
+  } catch { return {}; }
+}
+
+// ── Populate dropdowns ────────────────────────────────────────────────
+function populateDropdowns() {
+  const forms = [...new Set(allRows.map(r => r.form_name).filter(f => f && f !== '—'))].sort();
+  const inspectors = [...new Set(allRows.map(r => r.inspector_name).filter(n => n && n !== '—'))].sort();
+
+  const formSel = document.getElementById('filterForm');
+  const firstOpt = formSel.options[0];
+  formSel.innerHTML = '';
+  formSel.appendChild(firstOpt);
+  forms.forEach(f => { const o = document.createElement('option'); o.value = f; o.textContent = f; formSel.appendChild(o); });
+
+  const inspSel = document.getElementById('filterInspector');
+  const firstOpt2 = inspSel.options[0];
+  inspSel.innerHTML = '';
+  inspSel.appendChild(firstOpt2);
+  inspectors.forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = n; inspSel.appendChild(o); });
+}
+
+// ── Filter & sort ─────────────────────────────────────────────────────
+function applyFilters() {
+  const search   = document.getElementById('searchBox').value.trim().toLowerCase();
+  const group    = document.getElementById('filterGroup').value;
+  const status   = document.getElementById('filterStatus').value;
+  const form     = document.getElementById('filterForm').value;
+  const inspector = document.getElementById('filterInspector').value;
+
+  filtered = allRows.filter(r => {
+    if (group && r.asset_group !== group) return false;
+    if (status && r.status !== status) return false;
+    if (form && r.form_name !== form) return false;
+    if (inspector && r.inspector_name !== inspector) return false;
+    if (failsOnly && r.fail_count === 0) return false;
+    if (search) {
+      const hay = [r.asset_number, r.inspector_name, r.make, r.model, r.form_name, r.asset_group].join(' ').toLowerCase();
+      if (!hay.includes(search)) return false;
+    }
+    return true;
+  });
+
+  doSort();
+  currentPage = 1;
+  renderStats();
+  renderTable();
+}
+
+function sortBy(col) {
+  if (sortCol === col) { sortDir *= -1; }
+  else { sortCol = col; sortDir = col === 'date_inspected' ? -1 : 1; }
+  doSort();
+  renderTable();
+  updateSortHeaders();
+}
+
+function doSort() {
+  filtered.sort((a, b) => {
+    let av = a[sortCol], bv = b[sortCol];
+    if (av == null) av = sortDir === 1 ? '\uffff' : '';
+    if (bv == null) bv = sortDir === 1 ? '\uffff' : '';
+    if (typeof av === 'string') av = av.toLowerCase();
+    if (typeof bv === 'string') bv = bv.toLowerCase();
+    return av < bv ? -sortDir : av > bv ? sortDir : 0;
+  });
+}
+
+function updateSortHeaders() {
+  document.querySelectorAll('.insp-table th').forEach(th => {
+    const col = th.dataset.col;
+    th.classList.toggle('sorted', col === sortCol);
+    const arrow = th.querySelector('.sort-arrow');
+    if (arrow && col === sortCol) arrow.textContent = sortDir === 1 ? '↑' : '↓';
+    else if (arrow) arrow.textContent = '↕';
+  });
+}
+
+function toggleFailsOnly() {
+  failsOnly = !failsOnly;
+  const btn = document.getElementById('failsOnlyBtn');
+  btn.classList.toggle('active', failsOnly);
+  applyFilters();
+}
+
+function resetFilters() {
+  document.getElementById('searchBox').value = '';
+  document.getElementById('filterGroup').value = '';
+  document.getElementById('filterStatus').value = '';
+  document.getElementById('filterForm').value = '';
+  document.getElementById('filterInspector').value = '';
+  failsOnly = false;
+  document.getElementById('failsOnlyBtn').classList.remove('active');
+  setDefaultDates();
+  applyFilters();
+}
+
+// ── Stats ─────────────────────────────────────────────────────────────
+function renderStats() {
+  const total     = filtered.length;
+  const passed    = filtered.filter(r => r.status === 'passed').length;
+  const failed    = filtered.filter(r => r.status === 'failed').length;
+  const defects   = filtered.reduce((s, r) => s + r.fail_count, 0);
+  const inspectors = new Set(filtered.map(r => r.inspector_name)).size;
+  const assets    = new Set(filtered.map(r => r.asset_number)).size;
+
+  document.getElementById('statTotal').textContent     = total;
+  document.getElementById('statPassed').textContent    = passed;
+  document.getElementById('statFailed').textContent    = failed;
+  document.getElementById('statDefects').textContent   = defects;
+  document.getElementById('statInspectors').textContent = inspectors;
+  document.getElementById('statAssets').textContent    = assets;
+
+  document.getElementById('resultCount').textContent = `${total} inspection${total !== 1 ? 's' : ''}`;
+}
+
+// ── Render table ──────────────────────────────────────────────────────
+function renderTable() {
+  const body = document.getElementById('inspBody');
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const page  = filtered.slice(start, start + PAGE_SIZE);
+
+  if (!page.length) {
+    body.innerHTML = `<tr><td colspan="8"><div class="empty"><div class="empty-icon">📋</div><p>No inspections match these filters.</p></div></td></tr>`;
+    document.getElementById('pager').style.display = 'none';
+    return;
+  }
+
+  body.innerHTML = page.map(r => renderRow(r)).join('');
+
+  // Pager
+  const pager = document.getElementById('pager');
+  if (filtered.length > PAGE_SIZE) {
+    pager.style.display = 'flex';
+    document.getElementById('pagerInfo').textContent = `Page ${currentPage} of ${totalPages} · ${filtered.length} inspections`;
+    document.getElementById('prevBtn').disabled = currentPage === 1;
+    document.getElementById('nextBtn').disabled = currentPage === totalPages;
+  } else {
+    pager.style.display = 'none';
+  }
+
+  // Re-attach expand listeners
+  body.querySelectorAll('tr[data-id]').forEach(tr => {
+    tr.addEventListener('click', () => toggleExpand(tr.dataset.id));
+  });
+
+  updateSortHeaders();
+}
+
+function renderRow(r) {
+  const dt = r.date_inspected ? new Date(r.date_inspected) : null;
+  const dateStr = dt ? dt.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }) : '—';
+  const timeStr = dt ? dt.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit', hour12:true }) : '';
+  const vehicle = [r.year, r.make, r.model].filter(Boolean).join(' ') || '—';
+  const dur = r.duration_seconds ? formatDuration(r.duration_seconds) : '—';
+  const isExp = expandedId === r.id;
+
+  const mainRow = `<tr data-id="${r.id}" class="${isExp ? 'expanded' : ''}">
+    <td>
+      <div style="font-family:var(--mono);font-size:12px;font-weight:600">${dateStr}</div>
+      <div style="font-family:var(--mono);font-size:10px;color:var(--gray)">${timeStr}</div>
+    </td>
+    <td>
+      <div class="asset-num">${r.asset_number}</div>
+      <div class="vehicle-desc">${vehicle}</div>
+    </td>
+    <td>${r.asset_group ? `<span class="mono-tag tag-group">${r.asset_group}</span>` : '<span style="color:var(--gray);font-family:var(--mono);font-size:11px">—</span>'}</td>
+    <td class="inspector-name">${r.inspector_name}</td>
+    <td><span class="mono-tag tag-form">${shortFormName(r.form_name)}</span></td>
+    <td><span class="mono-tag tag-${r.status}">${r.status.replace('_',' ')}</span></td>
+    <td style="text-align:right">${r.fail_count > 0 ? `<span class="fail-dot">✕ ${r.fail_count}</span>` : '<span style="color:var(--gray);font-family:var(--mono);font-size:11px">—</span>'}</td>
+    <td style="text-align:right;font-family:var(--mono);font-size:11px;color:var(--gray)">${dur}</td>
+  </tr>`;
+
+  if (isExp) {
+    return mainRow + `<tr class="expand-row"><td colspan="8"><div class="expand-inner" id="expand-${r.id}"><span class="spinner"></span> Loading…</div></td></tr>`;
+  }
+  return mainRow;
+}
+
+function shortFormName(name) {
+  if (!name || name === '—') return '—';
+  return name
+    .replace('Blower Truck ', 'Blower ')
+    .replace('Vehicle ', '')
+    .replace('Inspection', 'Insp.');
+}
+
+function formatDuration(secs) {
+  if (!secs) return '—';
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  if (m === 0) return `${s}s`;
+  return `${m}m ${s}s`;
+}
+
+// ── Expand / detail ───────────────────────────────────────────────────
+async function toggleExpand(id) {
+  if (expandedId === id) {
+    expandedId = null;
+    renderTable();
+    return;
+  }
+  expandedId = id;
+  expandedTab = 'responses';
+  renderTable();
+
+  // Load detail
+  try {
+    const [responsesRes, defectsRes] = await Promise.all([
+      fetch(`${SUPA}/rest/v1/inspection_responses?inspection_id=eq.${id}&select=id,pass_fail_value,text_value,number_value,notes,inspection_form_items(title,item_type,category)&order=inspection_form_items(order_index)`, { headers: H }),
+      fetch(`${SUPA}/rest/v1/defects?select=id,severity,description,status,category&reported_via_inspection_response_id=in.(select id from inspection_responses where inspection_id='${id}')`, { headers: H }),
+    ]);
+    const responses = await responsesRes.json();
+    // Fetch defects linked to this inspection via responses
+    const respIds = responses.map(r => r.id);
+    let defects = [];
+    if (respIds.length) {
+      const dRes = await fetch(`${SUPA}/rest/v1/defects?reported_via_inspection_response_id=in.(${respIds.join(',')})&select=id,severity,description,status,category,reported_via_inspection_response_id`, { headers: H });
+      defects = await dRes.json();
+    }
+
+    const defectsByResp = {};
+    defects.forEach(d => {
+      if (!defectsByResp[d.reported_via_inspection_response_id]) defectsByResp[d.reported_via_inspection_response_id] = [];
+      defectsByResp[d.reported_via_inspection_response_id].push(d);
+    });
+
+    renderExpanded(id, responses, defects, defectsByResp);
+  } catch(e) {
+    console.error(e);
+    const el = document.getElementById(`expand-${id}`);
+    if (el) el.innerHTML = '<span style="color:var(--red);font-family:var(--mono);font-size:12px">Failed to load detail.</span>';
+  }
+}
+
+function renderExpanded(id, responses, defects, defectsByResp) {
+  const el = document.getElementById(`expand-${id}`);
+  if (!el) return;
+
+  const row = allRows.find(r => r.id === id);
+  const failResponses = responses.filter(r => r.pass_fail_value === 'fail');
+  const passResponses = responses.filter(r => r.pass_fail_value === 'pass');
+  const otherResponses = responses.filter(r => !r.pass_fail_value && (r.text_value || r.number_value));
+
+  const renderTabContent = (tab) => {
+    if (tab === 'responses') {
+      if (!responses.length) return '<div class="empty"><div class="empty-icon">📋</div><p>No response data.</p></div>';
+
+      const failHtml = failResponses.length ? `
+        <div class="detail-label" style="color:var(--red);margin-bottom:6px">✕ Failed items (${failResponses.length})</div>
+        <div class="response-list" style="margin-bottom:14px">
+          ${failResponses.map(r => {
+            const d = defectsByResp[r.id];
+            return `<div class="resp-item fail">
+              <div style="flex:1">
+                <div class="resp-title">${r.inspection_form_items?.title || '—'}</div>
+                ${r.notes ? `<div class="resp-notes">${escHtml(r.notes)}</div>` : ''}
+                ${d ? d.map(def => `<div style="font-family:var(--mono);font-size:10px;color:var(--red);margin-top:3px">⚠ ${def.severity?.toUpperCase()} · ${escHtml(def.description)}</div>`).join('') : ''}
+              </div>
+              <span class="resp-pf resp-fail">FAIL</span>
+            </div>`;
+          }).join('')}
+        </div>
+      ` : '';
+
+      const passHtml = passResponses.length ? `
+        <details>
+          <summary style="font-family:var(--mono);font-size:11px;color:var(--gray);cursor:pointer;margin-bottom:8px;user-select:none">
+            ✓ Passed items (${passResponses.length}) — click to expand
+          </summary>
+          <div class="response-list" style="margin-top:8px">
+            ${passResponses.map(r => `<div class="resp-item pass">
+              <div class="resp-title">${r.inspection_form_items?.title || '—'}</div>
+              <span class="resp-pf resp-pass">PASS</span>
+            </div>`).join('')}
+          </div>
+        </details>
+      ` : '';
+
+      const otherHtml = otherResponses.length ? `
+        <div class="detail-label" style="margin-top:12px;margin-bottom:6px">Other responses</div>
+        <div class="response-list">
+          ${otherResponses.map(r => `<div class="resp-item">
+            <div style="flex:1">
+              <div class="resp-title">${r.inspection_form_items?.title || '—'}</div>
+              <div class="resp-val">${escHtml(r.text_value || String(r.number_value) || '')}</div>
+            </div>
+          </div>`).join('')}
+        </div>
+      ` : '';
+
+      return failHtml + passHtml + otherHtml || '<div style="font-family:var(--mono);font-size:12px;color:var(--gray)">No pass/fail responses.</div>';
+    }
+
+    if (tab === 'details') {
+      if (!row) return '';
+      const dt = row.date_inspected ? new Date(row.date_inspected) : null;
+      const dtStr = dt ? dt.toLocaleString('en-US', { weekday:'short', year:'numeric', month:'short', day:'numeric', hour:'numeric', minute:'2-digit', hour12:true }) : '—';
+      const vehicle = [row.year, row.make, row.model].filter(Boolean).join(' ') || '—';
+      return `<div class="detail-grid">
+        <div class="detail-section">
+          <div class="detail-label">Asset</div>
+          <div class="detail-value" style="font-family:var(--mono);font-weight:600">${row.asset_number}</div>
+          <div class="detail-value" style="color:var(--gray);font-size:12px">${vehicle}</div>
+        </div>
+        <div class="detail-section">
+          <div class="detail-label">Inspector</div>
+          <div class="detail-value">${row.inspector_name}</div>
+          ${row.supervisor ? `<div class="detail-value" style="color:var(--gray);font-size:12px">Supervisor: ${row.supervisor}</div>` : ''}
+        </div>
+        <div class="detail-section">
+          <div class="detail-label">Date &amp; Time</div>
+          <div class="detail-value">${dtStr}</div>
+        </div>
+        <div class="detail-section">
+          <div class="detail-label">Form</div>
+          <div class="detail-value">${row.form_name}</div>
+        </div>
+        <div class="detail-section">
+          <div class="detail-label">Result</div>
+          <div class="detail-value"><span class="mono-tag tag-${row.status}">${row.status.replace('_',' ')}</span></div>
+        </div>
+        <div class="detail-section">
+          <div class="detail-label">Duration</div>
+          <div class="detail-value">${row.duration_seconds ? formatDuration(row.duration_seconds) : '—'}</div>
+        </div>
+        <div class="detail-section">
+          <div class="detail-label">Items answered</div>
+          <div class="detail-value">${responses.length}</div>
+        </div>
+        <div class="detail-section">
+          <div class="detail-label">Defects logged</div>
+          <div class="detail-value" style="${defects.length ? 'color:var(--red)' : ''}">${defects.length}</div>
+        </div>
+      </div>
+      ${defects.length ? `
+        <div class="detail-label" style="margin-bottom:6px">Defects from this inspection</div>
+        <div class="response-list">
+          ${defects.map(d => `<div class="resp-item fail">
+            <div style="flex:1">
+              <div class="resp-title">${escHtml(d.description)}</div>
+              <div style="font-family:var(--mono);font-size:10px;color:var(--gray);margin-top:2px">${d.category || ''} · ${d.status || ''}</div>
+            </div>
+            <span class="mono-tag ${d.severity === 'critical' ? 'tag-failed' : 'tag-in_progress'}">${d.severity || '—'}</span>
+          </div>`).join('')}
+        </div>` : ''}`;
+    }
+    return '';
+  };
+
+  el.innerHTML = `
+    <div class="expand-tabs">
+      <div class="expand-tab ${expandedTab === 'responses' ? 'active' : ''}" onclick="switchTab('${id}','responses')">Inspection Responses</div>
+      <div class="expand-tab ${expandedTab === 'details' ? 'active' : ''}" onclick="switchTab('${id}','details')">Details &amp; Defects</div>
+    </div>
+    <div id="expand-content-${id}">${renderTabContent(expandedTab)}</div>
+  `;
+
+  // Store for tab switching
+  el._responses = responses;
+  el._defects = defects;
+  el._defectsByResp = defectsByResp;
+  el._renderTabContent = renderTabContent;
+}
+
+function switchTab(id, tab) {
+  expandedTab = tab;
+  const el = document.getElementById(`expand-${id}`);
+  if (!el || !el._renderTabContent) return;
+  // Update tab active state
+  el.querySelectorAll('.expand-tab').forEach(t => t.classList.toggle('active', t.textContent.toLowerCase().includes(tab)));
+  document.getElementById(`expand-content-${id}`).innerHTML = el._renderTabContent(tab);
+}
+
+// ── Pagination ────────────────────────────────────────────────────────
+function changePage(dir) {
+  currentPage += dir;
+  expandedId = null;
+  renderTable();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ── Utils ─────────────────────────────────────────────────────────────
+function showSpinner(on) {
+  document.getElementById('loadSpinner').style.display = on ? 'inline' : 'none';
+}
+
+function showToast(msg, dur = 3000) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), dur);
+}
+
+function escHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
