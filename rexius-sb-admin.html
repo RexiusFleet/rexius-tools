@@ -108,6 +108,18 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
 .modal-body { padding: 20px; }
 .modal-footer { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 20px; border-top: 1px solid var(--border); }
 
+/* People toolbar */
+.people-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.ppl-search { font-family: var(--body); font-size: 13px; padding: 7px 10px; border: 1px solid var(--border); background: var(--paper); color: var(--ink); outline: none; width: 200px; }
+.ppl-search:focus { border-color: var(--green); }
+.ppl-filter { font-family: var(--body); font-size: 13px; padding: 7px 10px; border: 1px solid var(--border); background: var(--paper); color: var(--ink); outline: none; cursor: pointer; }
+.ppl-filter:focus { border-color: var(--green); }
+.ppl-sort { font-family: var(--mono); font-size: 11px; padding: 7px 12px; border: 1px solid var(--border); background: var(--paper); color: #444; cursor: pointer; }
+.ppl-sort:hover { border-color: var(--green); color: var(--green); }
+.ppl-count { font-family: var(--mono); font-size: 11px; color: var(--gray); margin-left: auto; }
+.flag-sup  { font-family: var(--mono); font-size: 10px; font-weight: 700; padding: 2px 7px; background: var(--amber-light); color: var(--amber); display: inline-block; margin-right: 3px; }
+.flag-mech { font-family: var(--mono); font-size: 10px; font-weight: 700; padding: 2px 7px; background: var(--blue-light); color: var(--blue); display: inline-block; margin-right: 3px; }
+
 /* Report schedule */
 .schedule-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
 .schedule-row:last-child { border-bottom: none; }
@@ -155,6 +167,16 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
         <div class="section-sub">Manage contacts who receive fleet notifications and reports.</div>
       </div>
       <button class="btn btn-primary" id="addPersonBtn">+ Add Person</button>
+    </div>
+    <div class="people-toolbar">
+      <input class="ppl-search" id="pplSearch" placeholder="Search by name…" oninput="filterAndRenderPeople()">
+      <select class="ppl-filter" id="pplRoleFilter" onchange="filterAndRenderPeople()">
+        <option value="">All people</option>
+        <option value="supervisor">Supervisors only</option>
+        <option value="mechanic">Mechanics only</option>
+      </select>
+      <button class="ppl-sort" onclick="togglePplSort()"><span id="pplSortLabel">A–Z ↓</span></button>
+      <span class="ppl-count" id="pplCount"></span>
     </div>
     <div id="peopleList"><div class="spinner">Loading…</div></div>
   </div>
@@ -208,6 +230,17 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
         <input class="form-input" id="personPhone" placeholder="000-000-0000">
       </div>
     </div>
+      <div class="form-row">
+        <label class="form-label">Supervisor</label>
+        <select class="form-select" id="personSupervisor">
+          <option value="">— None —</option>
+        </select>
+      </div>
+      <div class="form-row" style="display:flex;align-items:center;gap:12px;margin-top:4px">
+        <label class="form-label" style="margin:0">Is Supervisor</label>
+        <input type="checkbox" id="personIsSupervisor" style="width:16px;height:16px;cursor:pointer;accent-color:var(--green)">
+        <span style="font-size:12px;color:var(--gray)">Check to mark this person as a supervisor (makes them available in supervisor dropdowns)</span>
+      </div>
     <div class="modal-footer">
       <button class="btn" data-close="personModal">Cancel</button>
       <button class="btn btn-primary" id="savePersonBtn">Save Person</button>
@@ -397,13 +430,13 @@ function esc(s) {
 // ── Load all data ─────────────────────────────────────────────────
 async function loadAll() {
   await Promise.all([loadPeople(), loadTeams(), loadRecipients(), loadReports()]);
-  renderPeople();
+  filterAndRenderPeople();
   renderGroups();
   renderReports();
 }
 
 async function loadPeople() {
-  allPeople = await get('people?is_active=eq.true&order=last_name,first_name&select=id,first_name,last_name,email,phone_mobile');
+  allPeople = await get('people?deleted_at=is.null&order=last_name.asc,first_name.asc&select=id,first_name,last_name,email,phone_mobile,is_supervisor,is_mechanic,supervisor_id');
 }
 async function loadTeams() {
   allTeams = await get('teams?select=id,name&order=name');
@@ -416,17 +449,66 @@ async function loadReports() {
 }
 
 // ── PEOPLE ────────────────────────────────────────────────────────
-function renderPeople() {
+let pplSortDir = 1;
+
+function supervisors() { return allPeople.filter(p => p.is_supervisor); }
+
+function populateSupervisorDropdown(selectedId) {
+  const sel = document.getElementById('personSupervisor');
+  sel.innerHTML = '<option value="">— None —</option>' +
+    supervisors().map(s => `<option value="${s.id}" ${s.id === selectedId ? 'selected' : ''}>${esc(s.first_name)} ${esc(s.last_name)}</option>`).join('');
+}
+
+function togglePplSort() {
+  pplSortDir *= -1;
+  document.getElementById('pplSortLabel').textContent = pplSortDir === 1 ? 'A–Z ↓' : 'Z–A ↑';
+  filterAndRenderPeople();
+}
+
+function filterAndRenderPeople() {
+  const q    = (document.getElementById('pplSearch')?.value || '').toLowerCase().trim();
+  const role = document.getElementById('pplRoleFilter')?.value || '';
+  let list = allPeople.filter(p => {
+    const name = `${p.first_name} ${p.last_name}`.toLowerCase();
+    if (q && !name.includes(q)) return false;
+    if (role === 'supervisor' && !p.is_supervisor) return false;
+    if (role === 'mechanic'   && !p.is_mechanic)   return false;
+    return true;
+  });
+  list.sort((a, b) => {
+    const av = (a.last_name || '').toLowerCase();
+    const bv = (b.last_name || '').toLowerCase();
+    return av < bv ? -pplSortDir : av > bv ? pplSortDir : 0;
+  });
+  const countEl = document.getElementById('pplCount');
+  if (countEl) countEl.textContent = `${list.length} people`;
+  renderPeople(list);
+}
+
+function renderPeople(list) {
+  list = list || allPeople;
   const el = document.getElementById('peopleList');
-  if (!allPeople.length) { el.innerHTML = '<div class="empty">No people yet. Add someone to get started.</div>'; return; }
+  if (!list.length) { el.innerHTML = '<div class="empty">No people match.</div>'; return; }
+
+  // Build supervisor name lookup
+  const supMap = {};
+  allPeople.forEach(p => { supMap[p.id] = `${p.first_name} ${p.last_name}`; });
+
   el.innerHTML = `<div class="card"><div class="card-body" style="padding:0 16px">
-    ${allPeople.map(p => `
-      <div class="person-row">
-        <div class="person-name">${esc(p.first_name)} ${esc(p.last_name)}</div>
+    ${list.map(p => {
+      const flags = [
+        p.is_supervisor ? `<span class="flag-sup">SUP</span>` : '',
+        p.is_mechanic   ? `<span class="flag-mech">MECH</span>` : '',
+      ].filter(Boolean).join('');
+      const supName = p.supervisor_id && supMap[p.supervisor_id] ? `<span style="font-family:var(--mono);font-size:10px;color:var(--gray)"> · ${esc(supMap[p.supervisor_id])}</span>` : '';
+      return `<div class="person-row">
+        <div class="person-name">${esc(p.first_name)} ${esc(p.last_name)}${supName}</div>
+        <div style="min-width:80px">${flags}</div>
         <div class="person-email">${esc(p.email) || '<span style="color:#ccc">no email</span>'}</div>
         <div class="person-phone">${esc(p.phone_mobile) || '<span style="color:#ccc">no phone</span>'}</div>
         <button class="btn btn-sm" onclick="editPerson('${p.id}')">Edit</button>
-      </div>`).join('')}
+      </div>`;
+    }).join('')}
   </div></div>`;
 }
 
@@ -436,6 +518,8 @@ document.getElementById('addPersonBtn').addEventListener('click', () => {
   document.getElementById('personLast').value = '';
   document.getElementById('personEmail').value = '';
   document.getElementById('personPhone').value = '';
+  document.getElementById('personIsSupervisor').checked = false;
+  populateSupervisorDropdown(null);
   document.getElementById('personModalTitle').textContent = 'Add Person';
   openModal('personModal');
 });
@@ -448,29 +532,47 @@ function editPerson(id) {
   document.getElementById('personLast').value = p.last_name || '';
   document.getElementById('personEmail').value = p.email || '';
   document.getElementById('personPhone').value = p.phone_mobile || '';
+  document.getElementById('personIsSupervisor').checked = !!p.is_supervisor;
+  populateSupervisorDropdown(p.supervisor_id || null);
   document.getElementById('personModalTitle').textContent = 'Edit Person';
   openModal('personModal');
 }
 
 document.getElementById('savePersonBtn').addEventListener('click', async () => {
-  const id = document.getElementById('personId').value;
-  const body = {
-    first_name: document.getElementById('personFirst').value.trim(),
-    last_name:  document.getElementById('personLast').value.trim(),
-    email:      document.getElementById('personEmail').value.trim() || null,
-    phone_mobile: document.getElementById('personPhone').value.trim() || null,
-  };
-  if (!body.first_name || !body.last_name) { showToast('Name is required'); return; }
+  const id          = document.getElementById('personId').value;
+  const firstName   = document.getElementById('personFirst').value.trim();
+  const lastName    = document.getElementById('personLast').value.trim();
+  const email       = document.getElementById('personEmail').value.trim() || null;
+  const phone       = document.getElementById('personPhone').value.trim() || null;
+  const isSupervisor = document.getElementById('personIsSupervisor').checked;
+  const supId       = document.getElementById('personSupervisor').value || null;
+
+  if (!firstName || !lastName) { showToast('Name is required'); return; }
+
   if (id) {
-    await patch(`people?id=eq.${id}`, body);
+    // Use update_person RPC for supervisor fields; patch for name
+    await patch(`people?id=eq.${id}`, { first_name: firstName, last_name: lastName, updated_at: new Date().toISOString() });
+    const res = await fetch(`${SUPA}/rest/v1/rpc/update_person`, {
+      method: 'POST', headers: H,
+      body: JSON.stringify({
+        p_id: id,
+        p_email: email,
+        p_phone_mobile: phone,
+        p_supervisor_id: supId,
+        p_is_supervisor: isSupervisor,
+        p_clear_supervisor: !supId,
+      })
+    });
+    const data = await res.json();
+    if (!data.success) { showToast('Save error: ' + (data.error || 'unknown')); return; }
     showToast('Person updated');
   } else {
-    await post('people', { ...body, is_active: true });
+    await post('people', { first_name: firstName, last_name: lastName, email, phone_mobile: phone, is_active: true, is_supervisor: isSupervisor, supervisor_id: supId || null });
     showToast('Person added');
   }
   closeModal('personModal');
   await loadPeople();
-  renderPeople();
+  filterAndRenderPeople();
   populatePersonDropdown();
 });
 
