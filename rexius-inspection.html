@@ -338,16 +338,17 @@ document.getElementById('reviewBackBtn').addEventListener('click', () => showScr
 function handleSubmitClick() {
   const failures = formItems.filter(i => responses[i.id]?.value === 'fail');
   if (failures.length > 0) {
-    // Show review screen with defect list
+    const safe = s => s == null ? '' : String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     const listEl = document.getElementById('reviewDefectList');
     listEl.innerHTML = failures.map(item => {
       const resp = responses[item.id] || {};
       const sev = resp.severity || 'minor';
       const note = resp.notes ? ': ' + resp.notes : '';
       const sevColor = sev === 'critical' ? 'var(--red)' : 'var(--amber)';
+      const sevBg = sev === 'critical' ? '#fdf0f0' : '#fef8ec';
       return `<div style="display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
-        <span style="font-family:var(--mono);font-size:10px;font-weight:700;text-transform:uppercase;color:${sevColor};padding:2px 7px;background:${sev === 'critical' ? 'var(--red-light)' : 'var(--amber-light)'};white-space:nowrap;margin-top:1px">${sev}</span>
-        <span style="font-size:13px;font-weight:500">${esc(item.title)}${esc(note)}</span>
+        <span style="font-family:var(--mono);font-size:10px;font-weight:700;text-transform:uppercase;color:${sevColor};padding:2px 7px;background:${sevBg};white-space:nowrap;margin-top:1px">${sev}</span>
+        <span style="font-size:13px;font-weight:500">${safe(item.title)}${safe(note)}</span>
       </div>`;
     }).join('');
     document.getElementById('contactPhone').value = '';
