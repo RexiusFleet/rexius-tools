@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rexius Fleet — Admin</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@300;400;500;600&display=swap');
+:root {
+  --ink: #0d0d0d; --paper: #fafaf8; --surface: #f3f2ee; --border: #d8d6d0;
+  --green: #1a5c32; --green-mid: #2d7d4a; --green-light: #e8f5ee;
+  --red: #8b1a1a; --red-light: #fdf0f0;
+  --amber: #7a4a00; --amber-light: #fef8ec;
+  --blue: #1e3a5f; --blue-light: #e8f0fa;
+  --gray: #6b7280;
+  --mono: 'IBM Plex Mono', monospace;
+  --display: 'Barlow Condensed', sans-serif;
+  --body: 'Barlow', sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--body); background: var(--surface); color: var(--ink); -webkit-font-smoothing: antialiased; }
+
+/* Login */
+#loginScreen { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--ink); background-image: repeating-linear-gradient(0deg,transparent,transparent 39px,rgba(255,255,255,.03) 39px,rgba(255,255,255,.03) 40px),repeating-linear-gradient(90deg,transparent,transparent 39px,rgba(255,255,255,.03) 39px,rgba(255,255,255,.03) 40px); }
+.login-box { background: var(--paper); border: 1px solid #333; width: 100%; max-width: 380px; padding: 36px; }
+.login-wordmark { font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: .25em; text-transform: uppercase; color: var(--green); margin-bottom: 4px; }
+.login-title { font-family: var(--display); font-size: 28px; font-weight: 700; margin-bottom: 4px; }
+.login-sub { font-size: 12px; color: #666; margin-bottom: 24px; }
+.login-label { display: block; font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: #555; margin-bottom: 5px; }
+.login-input { width: 100%; font-family: var(--body); font-size: 15px; padding: 10px 13px; border: 1px solid var(--border); background: var(--paper); color: var(--ink); margin-bottom: 12px; outline: none; }
+.login-input:focus { border-color: var(--green); }
+.login-btn { width: 100%; font-family: var(--display); font-size: 15px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 12px; border: none; background: var(--ink); color: var(--paper); cursor: pointer; margin-top: 4px; }
+.login-btn:hover { background: var(--green); }
+.login-err { color: var(--red); font-size: 12px; margin-top: 8px; display: none; }
+.login-err.show { display: block; }
+
+/* App */
+#appScreen { display: none; min-height: 100vh; }
+.topbar { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; background: var(--ink); color: var(--paper); position: sticky; top: 0; z-index: 100; }
+.topbar-brand { font-family: var(--display); font-size: 18px; font-weight: 700; letter-spacing: .04em; }
+.topbar-badge { font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: rgba(255,255,255,.4); margin-left: 10px; }
+.topbar-right { display: flex; align-items: center; gap: 12px; }
+.logout-btn { background: none; border: 1px solid rgba(255,255,255,.25); color: rgba(255,255,255,.6); font-family: var(--mono); font-size: 10px; padding: 4px 10px; cursor: pointer; text-transform: uppercase; letter-spacing: .05em; }
+.logout-btn:hover { color: #fff; border-color: #fff; }
+
+/* Tabs */
+.tabs { display: flex; background: var(--paper); border-bottom: 2px solid var(--border); padding: 0 20px; }
+.tab { font-family: var(--mono); font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; padding: 14px 20px; border: none; background: none; cursor: pointer; color: var(--gray); border-bottom: 2px solid transparent; margin-bottom: -2px; }
+.tab.active { color: var(--green); border-bottom-color: var(--green); }
+.tab:hover:not(.active) { color: var(--ink); }
+
+.wrap { max-width: 900px; margin: 0 auto; padding: 24px 20px; }
+.section-title { font-family: var(--display); font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+.section-sub { font-size: 13px; color: var(--gray); margin-bottom: 20px; }
+
+/* Cards */
+.card { background: var(--paper); border: 1px solid var(--border); margin-bottom: 10px; }
+.card-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--border); }
+.card-title { font-family: var(--display); font-size: 17px; font-weight: 700; }
+.card-sub { font-size: 12px; color: var(--gray); margin-top: 1px; }
+.card-body { padding: 14px 16px; }
+
+/* Buttons */
+.btn { font-family: var(--mono); font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; padding: 7px 14px; border: 1px solid var(--border); background: var(--paper); color: var(--ink); cursor: pointer; }
+.btn:hover { border-color: var(--green); color: var(--green); }
+.btn-primary { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.btn-primary:hover { background: var(--green); border-color: var(--green); color: var(--paper); }
+.btn-danger { color: var(--red); border-color: var(--red); }
+.btn-danger:hover { background: var(--red); color: #fff; }
+.btn-sm { padding: 4px 10px; font-size: 10px; }
+
+/* Forms */
+.form-row { margin-bottom: 12px; }
+.form-label { display: block; font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: #555; margin-bottom: 4px; }
+.form-input, .form-select { width: 100%; font-family: var(--body); font-size: 14px; padding: 8px 11px; border: 1px solid var(--border); background: var(--paper); color: var(--ink); outline: none; }
+.form-input:focus, .form-select:focus { border-color: var(--green); }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+/* People list */
+.person-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.person-row:last-child { border-bottom: none; }
+.person-name { font-weight: 600; font-size: 14px; min-width: 160px; }
+.person-email { font-family: var(--mono); font-size: 11px; color: var(--gray); flex: 1; }
+.person-phone { font-family: var(--mono); font-size: 11px; color: var(--gray); min-width: 130px; }
+
+/* Recipients */
+.recipient-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.recipient-row:last-child { border-bottom: none; }
+.role-badge { font-family: var(--mono); font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 2px 8px; }
+.role-all { background: var(--green-light); color: var(--green); }
+.role-critical { background: var(--red-light); color: var(--red); }
+.role-digest { background: var(--blue-light); color: var(--blue); }
+
+/* Empty */
+.empty { text-align: center; padding: 32px 20px; color: var(--gray); font-size: 13px; }
+
+/* Toast */
+#toast { position: fixed; bottom: 24px; right: 24px; background: var(--ink); color: var(--paper); font-family: var(--mono); font-size: 12px; padding: 10px 18px; display: none; z-index: 999; }
+#toast.show { display: block; }
+
+/* Modal */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 200; align-items: center; justify-content: center; }
+.modal-overlay.open { display: flex; }
+.modal { background: var(--paper); border: 1px solid var(--border); width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto; }
+.modal-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); }
+.modal-title { font-family: var(--display); font-size: 20px; font-weight: 700; }
+.modal-close { background: none; border: none; font-size: 22px; cursor: pointer; color: var(--gray); }
+.modal-body { padding: 20px; }
+.modal-footer { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 20px; border-top: 1px solid var(--border); }
+
+/* Report schedule */
+.schedule-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.schedule-row:last-child { border-bottom: none; }
+.schedule-name { font-weight: 600; font-size: 14px; flex: 1; min-width: 200px; }
+.freq-badge { font-family: var(--mono); font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 2px 8px; background: var(--surface); border: 1px solid var(--border); color: var(--gray); }
+.spinner { text-align: center; padding: 40px; color: var(--gray); font-family: var(--mono); font-size: 12px; }
+</style>
+</head>
+<body>
+
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="login-wordmark">Rexius Fleet</div>
+    <div class="login-title">Admin Console</div>
+    <div class="login-sub">Notification groups, contacts &amp; report schedules</div>
+    <label class="login-label" for="loginPass">Password</label>
+    <input class="login-input" id="loginPass" type="password" placeholder="••••••••" autocomplete="current-password">
+    <button class="login-btn" id="loginBtn">Sign In</button>
+    <div class="login-err" id="loginErr">Incorrect password.</div>
+  </div>
+</div>
+
+<div id="appScreen">
+  <div class="topbar">
+    <div>
+      <span class="topbar-brand">Rexius Fleet</span>
+      <span class="topbar-badge">Admin Console</span>
+    </div>
+    <div class="topbar-right">
+      <button class="logout-btn" id="logoutBtn">Sign Out</button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="people">People</button>
+    <button class="tab" data-tab="groups">Notification Groups</button>
+    <button class="tab" data-tab="reports">Report Schedules</button>
+  </div>
+
+  <!-- PEOPLE TAB -->
+  <div id="tab-people" class="wrap">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px">
+      <div>
+        <div class="section-title">People</div>
+        <div class="section-sub">Manage contacts who receive fleet notifications and reports.</div>
+      </div>
+      <button class="btn btn-primary" id="addPersonBtn">+ Add Person</button>
+    </div>
+    <div id="peopleList"><div class="spinner">Loading…</div></div>
+  </div>
+
+  <!-- GROUPS TAB -->
+  <div id="tab-groups" class="wrap" style="display:none">
+    <div class="section-title">Notification Groups</div>
+    <div class="section-sub">For each team, manage who receives defect alerts and which role they hold.</div>
+    <div style="margin-bottom:16px;display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+      <span style="font-family:var(--mono);font-size:10px;color:var(--gray);text-transform:uppercase;letter-spacing:.06em">Role key:</span>
+      <span class="role-badge role-all">All</span><span style="font-size:12px;color:var(--gray)">Digest + critical alerts</span>
+      <span class="role-badge role-critical">Critical</span><span style="font-size:12px;color:var(--gray)">Critical alerts only</span>
+      <span class="role-badge role-digest">Digest</span><span style="font-size:12px;color:var(--gray)">Daily report only</span>
+    </div>
+    <div id="groupsList"><div class="spinner">Loading…</div></div>
+  </div>
+
+  <!-- REPORTS TAB -->
+  <div id="tab-reports" class="wrap" style="display:none">
+    <div class="section-title">Report Schedules</div>
+    <div class="section-sub">Manage when daily, weekly, and monthly fleet reports are sent.</div>
+    <div id="reportsList"><div class="spinner">Loading…</div></div>
+  </div>
+</div>
+
+<!-- ADD/EDIT PERSON MODAL -->
+<div class="modal-overlay" id="personModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="personModalTitle">Add Person</div>
+      <button class="modal-close" data-close="personModal">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="personId">
+      <div class="form-grid">
+        <div class="form-row">
+          <label class="form-label">First Name</label>
+          <input class="form-input" id="personFirst" placeholder="First">
+        </div>
+        <div class="form-row">
+          <label class="form-label">Last Name</label>
+          <input class="form-input" id="personLast" placeholder="Last">
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Email</label>
+        <input class="form-input" id="personEmail" type="email" placeholder="email@rexius.com">
+      </div>
+      <div class="form-row">
+        <label class="form-label">Phone</label>
+        <input class="form-input" id="personPhone" placeholder="000-000-0000">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" data-close="personModal">Cancel</button>
+      <button class="btn btn-primary" id="savePersonBtn">Save Person</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD RECIPIENT MODAL -->
+<div class="modal-overlay" id="recipientModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Add to Group</div>
+      <button class="modal-close" data-close="recipientModal">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="recipientTeamId">
+      <div class="form-row">
+        <label class="form-label">Person</label>
+        <select class="form-select" id="recipientPerson"></select>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Role</label>
+        <select class="form-select" id="recipientRole">
+          <option value="all">All — Digest + critical alerts</option>
+          <option value="critical">Critical — Immediate critical alerts only</option>
+          <option value="digest">Digest — Daily report only</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" data-close="recipientModal">Cancel</button>
+      <button class="btn btn-primary" id="saveRecipientBtn">Add to Group</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT REPORT SCHEDULE MODAL -->
+<div class="modal-overlay" id="reportModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="reportModalTitle">Edit Report Schedule</div>
+      <button class="modal-close" data-close="reportModal">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="reportId">
+      <div class="form-row">
+        <label class="form-label">Report Name</label>
+        <input class="form-input" id="reportName" placeholder="e.g. Portland Blower Daily">
+      </div>
+      <div class="form-row">
+        <label class="form-label">Team / Group</label>
+        <select class="form-select" id="reportTeam"></select>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Edge Function</label>
+        <input class="form-input" id="reportFunction" placeholder="e.g. portland-blower-daily-report">
+      </div>
+      <div class="form-grid">
+        <div class="form-row">
+          <label class="form-label">Frequency</label>
+          <select class="form-select" id="reportFrequency">
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label class="form-label">Send Time (PT)</label>
+          <input class="form-input" id="reportTime" placeholder="16:45" maxlength="5">
+        </div>
+      </div>
+      <div class="form-row" id="sendDayRow" style="display:none">
+        <label class="form-label">Send Day</label>
+        <select class="form-select" id="reportDay">
+          <option value="monday">Monday</option>
+          <option value="tuesday">Tuesday</option>
+          <option value="wednesday">Wednesday</option>
+          <option value="thursday">Thursday</option>
+          <option value="friday">Friday</option>
+          <option value="saturday">Saturday</option>
+          <option value="sunday">Sunday</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" data-close="reportModal">Cancel</button>
+      <button class="btn btn-primary" id="saveReportBtn">Save Schedule</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const SUPA = 'https://toduddkyttuablausist.supabase.co';
+const KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRvZHVkZGt5dHR1YWJsYXVzaXN0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NjY5MTEsImV4cCI6MjA5NjI0MjkxMX0.ZdtMIuc9kEo7-x0Lr-y2--F1aqkurbLJ0YxeQD2ggDQ';
+const H = { apikey: KEY, Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' };
+const PASSWORD = 'jordanStool24';
+const SESSION_KEY = 'rexius_admin_session';
+
+let allPeople = [];
+let allTeams = [];
+let allRecipients = [];
+let allReports = [];
+
+// ── Auth ──────────────────────────────────────────────────────────
+document.getElementById('loginBtn').addEventListener('click', doLogin);
+document.getElementById('loginPass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+document.getElementById('logoutBtn').addEventListener('click', logout);
+
+function doLogin() {
+  const pass = document.getElementById('loginPass').value;
+  const err = document.getElementById('loginErr');
+  if (pass !== PASSWORD) { err.classList.add('show'); return; }
+  err.classList.remove('show');
+  try { localStorage.setItem(SESSION_KEY, '1'); } catch(e) {}
+  enterApp();
+}
+function logout() {
+  try { localStorage.removeItem(SESSION_KEY); } catch(e) {}
+  document.getElementById('appScreen').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'flex';
+}
+function enterApp() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('appScreen').style.display = 'block';
+  loadAll();
+}
+(function() {
+  try { if (localStorage.getItem(SESSION_KEY)) enterApp(); } catch(e) {}
+})();
+
+// ── Tabs ──────────────────────────────────────────────────────────
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    document.querySelectorAll('[id^="tab-"]').forEach(el => el.style.display = 'none');
+    document.getElementById('tab-' + tab.dataset.tab).style.display = 'block';
+  });
+});
+
+// ── Modal helpers ─────────────────────────────────────────────────
+document.querySelectorAll('[data-close]').forEach(btn => {
+  btn.addEventListener('click', () => closeModal(btn.dataset.close));
+});
+document.querySelectorAll('.modal-overlay').forEach(m => {
+  m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); });
+});
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// ── Toast ─────────────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ── API helpers ───────────────────────────────────────────────────
+async function get(path) {
+  const r = await fetch(`${SUPA}/rest/v1/${path}`, { headers: H });
+  return r.json();
+}
+async function post(path, body) {
+  const r = await fetch(`${SUPA}/rest/v1/${path}`, {
+    method: 'POST', headers: { ...H, Prefer: 'return=representation' }, body: JSON.stringify(body)
+  });
+  return r.json();
+}
+async function patch(path, body) {
+  const r = await fetch(`${SUPA}/rest/v1/${path}`, {
+    method: 'PATCH', headers: { ...H, Prefer: 'return=representation' }, body: JSON.stringify(body)
+  });
+  return r.json();
+}
+async function del(path) {
+  await fetch(`${SUPA}/rest/v1/${path}`, { method: 'DELETE', headers: H });
+}
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ── Load all data ─────────────────────────────────────────────────
+async function loadAll() {
+  await Promise.all([loadPeople(), loadTeams(), loadRecipients(), loadReports()]);
+  renderPeople();
+  renderGroups();
+  renderReports();
+}
+
+async function loadPeople() {
+  allPeople = await get('people?is_active=eq.true&order=last_name,first_name&select=id,first_name,last_name,email,phone_mobile');
+}
+async function loadTeams() {
+  allTeams = await get('teams?select=id,name&order=name');
+}
+async function loadRecipients() {
+  allRecipients = await get('asset_notification_recipients?is_active=eq.true&select=id,asset_id,recipient_id,role,assets(asset_number,team_id),people(id,first_name,last_name,email)');
+}
+async function loadReports() {
+  allReports = await get('report_schedules?order=name&select=*,teams(name)');
+}
+
+// ── PEOPLE ────────────────────────────────────────────────────────
+function renderPeople() {
+  const el = document.getElementById('peopleList');
+  if (!allPeople.length) { el.innerHTML = '<div class="empty">No people yet. Add someone to get started.</div>'; return; }
+  el.innerHTML = `<div class="card"><div class="card-body" style="padding:0 16px">
+    ${allPeople.map(p => `
+      <div class="person-row">
+        <div class="person-name">${esc(p.first_name)} ${esc(p.last_name)}</div>
+        <div class="person-email">${esc(p.email) || '<span style="color:#ccc">no email</span>'}</div>
+        <div class="person-phone">${esc(p.phone_mobile) || '<span style="color:#ccc">no phone</span>'}</div>
+        <button class="btn btn-sm" onclick="editPerson('${p.id}')">Edit</button>
+      </div>`).join('')}
+  </div></div>`;
+}
+
+document.getElementById('addPersonBtn').addEventListener('click', () => {
+  document.getElementById('personId').value = '';
+  document.getElementById('personFirst').value = '';
+  document.getElementById('personLast').value = '';
+  document.getElementById('personEmail').value = '';
+  document.getElementById('personPhone').value = '';
+  document.getElementById('personModalTitle').textContent = 'Add Person';
+  openModal('personModal');
+});
+
+function editPerson(id) {
+  const p = allPeople.find(x => x.id === id);
+  if (!p) return;
+  document.getElementById('personId').value = p.id;
+  document.getElementById('personFirst').value = p.first_name || '';
+  document.getElementById('personLast').value = p.last_name || '';
+  document.getElementById('personEmail').value = p.email || '';
+  document.getElementById('personPhone').value = p.phone_mobile || '';
+  document.getElementById('personModalTitle').textContent = 'Edit Person';
+  openModal('personModal');
+}
+
+document.getElementById('savePersonBtn').addEventListener('click', async () => {
+  const id = document.getElementById('personId').value;
+  const body = {
+    first_name: document.getElementById('personFirst').value.trim(),
+    last_name:  document.getElementById('personLast').value.trim(),
+    email:      document.getElementById('personEmail').value.trim() || null,
+    phone_mobile: document.getElementById('personPhone').value.trim() || null,
+  };
+  if (!body.first_name || !body.last_name) { showToast('Name is required'); return; }
+  if (id) {
+    await patch(`people?id=eq.${id}`, body);
+    showToast('Person updated');
+  } else {
+    await post('people', { ...body, is_active: true });
+    showToast('Person added');
+  }
+  closeModal('personModal');
+  await loadPeople();
+  renderPeople();
+  populatePersonDropdown();
+});
+
+// ── GROUPS ────────────────────────────────────────────────────────
+function renderGroups() {
+  const el = document.getElementById('groupsList');
+
+  // Build team → unique recipients map
+  const teamMap = {};
+  for (const r of allRecipients) {
+    const teamId = r.assets?.team_id;
+    if (!teamId) continue;
+    if (!teamMap[teamId]) teamMap[teamId] = {};
+    const pid = r.recipient_id;
+    if (!teamMap[teamId][pid]) teamMap[teamId][pid] = { person: r.people, roles: new Set() };
+    teamMap[teamId][pid].roles.add(r.role);
+  }
+
+  // Show all teams, even those with no recipients
+  const html = allTeams.map(t => {
+    const recipients = Object.values(teamMap[t.id] || {});
+    const recipientHtml = recipients.length === 0
+      ? '<div style="font-size:12px;color:var(--gray);padding:8px 0">No recipients assigned.</div>'
+      : recipients.map(({ person, roles }) => {
+          const role = roles.has('all') ? 'all' : roles.has('critical') ? 'critical' : 'digest';
+          const roleLabel = role === 'all' ? 'All' : role === 'critical' ? 'Critical' : 'Digest';
+          return `<div class="recipient-row">
+            <span style="font-weight:600;font-size:13px;flex:1">${esc(person?.first_name)} ${esc(person?.last_name)}</span>
+            <span style="font-family:var(--mono);font-size:11px;color:var(--gray);flex:1">${esc(person?.email) || '—'}</span>
+            <span class="role-badge role-${role}">${roleLabel}</span>
+            <button class="btn btn-sm" onclick="changeRole('${t.id}','${person?.id}','${role}')">Change Role</button>
+            <button class="btn btn-sm btn-danger" onclick="removeRecipient('${t.id}','${person?.id}')">Remove</button>
+          </div>`;
+        }).join('');
+
+    return `<div class="card" style="margin-bottom:12px">
+      <div class="card-head">
+        <div>
+          <div class="card-title">${esc(t.name)}</div>
+          <div class="card-sub">${recipients.length} recipient${recipients.length !== 1 ? 's' : ''}</div>
+        </div>
+        <button class="btn btn-sm" onclick="openAddRecipient('${t.id}')">+ Add Person</button>
+      </div>
+      <div class="card-body" style="padding:0 16px">${recipientHtml}</div>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = html || '<div class="empty">No teams found.</div>';
+}
+
+function openAddRecipient(teamId) {
+  document.getElementById('recipientTeamId').value = teamId;
+  populatePersonDropdown();
+  openModal('recipientModal');
+}
+
+function populatePersonDropdown() {
+  const sel = document.getElementById('recipientPerson');
+  sel.innerHTML = allPeople.map(p =>
+    `<option value="${p.id}">${esc(p.first_name)} ${esc(p.last_name)}${p.email ? ' — ' + p.email : ''}</option>`
+  ).join('');
+}
+
+document.getElementById('saveRecipientBtn').addEventListener('click', async () => {
+  const teamId = document.getElementById('recipientTeamId').value;
+  const personId = document.getElementById('recipientPerson').value;
+  const role = document.getElementById('recipientRole').value;
+
+  // Get all asset IDs for this team
+  const assets = await get(`assets?team_id=eq.${teamId}&deleted_at=is.null&select=id`);
+  if (!assets.length) { showToast('No assets in this team'); return; }
+
+  // Upsert recipient for each asset
+  for (const a of assets) {
+    const existing = await get(`asset_notification_recipients?asset_id=eq.${a.id}&recipient_id=eq.${personId}&select=id`);
+    if (existing.length) {
+      await patch(`asset_notification_recipients?id=eq.${existing[0].id}`, { role, is_active: true });
+    } else {
+      await post('asset_notification_recipients', { asset_id: a.id, recipient_id: personId, role, is_active: true });
+    }
+  }
+  showToast('Recipient added to group');
+  closeModal('recipientModal');
+  await loadRecipients();
+  renderGroups();
+});
+
+async function changeRole(teamId, personId, currentRole) {
+  const roles = ['all', 'critical', 'digest'];
+  const next = roles[(roles.indexOf(currentRole) + 1) % roles.length];
+  const assets = await get(`assets?team_id=eq.${teamId}&deleted_at=is.null&select=id`);
+  for (const a of assets) {
+    await patch(`asset_notification_recipients?asset_id=eq.${a.id}&recipient_id=eq.${personId}`, { role: next });
+  }
+  showToast(`Role changed to ${next}`);
+  await loadRecipients();
+  renderGroups();
+}
+
+async function removeRecipient(teamId, personId) {
+  if (!confirm('Remove this person from the group?')) return;
+  const assets = await get(`assets?team_id=eq.${teamId}&deleted_at=is.null&select=id`);
+  for (const a of assets) {
+    await patch(`asset_notification_recipients?asset_id=eq.${a.id}&recipient_id=eq.${personId}`, { is_active: false });
+  }
+  showToast('Recipient removed');
+  await loadRecipients();
+  renderGroups();
+}
+
+// ── REPORTS ───────────────────────────────────────────────────────
+function renderReports() {
+  const el = document.getElementById('reportsList');
+  const html = `<div class="card">
+    <div class="card-head">
+      <div class="card-title">Scheduled Reports</div>
+      <button class="btn btn-sm btn-primary" onclick="openAddReport()">+ Add Report</button>
+    </div>
+    <div class="card-body" style="padding:0 16px">
+      ${!allReports.length ? '<div class="empty">No reports configured yet.</div>' :
+        allReports.map(r => {
+          const freqColor = r.frequency === 'daily' ? 'var(--green)' : r.frequency === 'weekly' ? 'var(--blue)' : 'var(--amber)';
+          const dayLabel = r.frequency !== 'daily' && r.send_day ? ` · ${r.send_day.charAt(0).toUpperCase() + r.send_day.slice(1)}` : '';
+          return `<div class="schedule-row">
+            <div class="schedule-name">
+              ${esc(r.name)}
+              <div style="font-size:12px;color:var(--gray);font-weight:400;margin-top:2px">${esc(r.teams?.name || '—')} · <span style="font-family:var(--mono);font-size:10px">${esc(r.edge_function)}</span></div>
+            </div>
+            <span class="freq-badge" style="color:${freqColor};border-color:${freqColor}">${r.frequency}${dayLabel}</span>
+            <span style="font-family:var(--mono);font-size:12px;color:var(--gray)">${esc(r.send_time)} PT</span>
+            <span style="font-family:var(--mono);font-size:10px;padding:2px 8px;background:${r.is_active ? 'var(--green-light)' : 'var(--surface)'};color:${r.is_active ? 'var(--green)' : 'var(--gray)'};">${r.is_active ? 'Active' : 'Paused'}</span>
+            <button class="btn btn-sm" onclick="editReport('${r.id}')">Edit</button>
+            <button class="btn btn-sm ${r.is_active ? 'btn-danger' : ''}" onclick="toggleReport('${r.id}',${r.is_active})">${r.is_active ? 'Pause' : 'Resume'}</button>
+          </div>`;
+        }).join('')
+      }
+    </div>
+  </div>`;
+  el.innerHTML = html;
+}
+
+function populateTeamDropdown() {
+  const sel = document.getElementById('reportTeam');
+  sel.innerHTML = '<option value="">— No specific team —</option>' +
+    allTeams.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join('');
+}
+
+function openAddReport() {
+  document.getElementById('reportId').value = '';
+  document.getElementById('reportName').value = '';
+  document.getElementById('reportFunction').value = '';
+  document.getElementById('reportTime').value = '16:45';
+  document.getElementById('reportFrequency').value = 'daily';
+  document.getElementById('reportDay').value = 'monday';
+  document.getElementById('sendDayRow').style.display = 'none';
+  document.getElementById('reportModalTitle').textContent = 'Add Report Schedule';
+  populateTeamDropdown();
+  openModal('reportModal');
+}
+
+function editReport(id) {
+  const r = allReports.find(x => x.id === id);
+  if (!r) return;
+  document.getElementById('reportId').value = r.id;
+  document.getElementById('reportName').value = r.name;
+  document.getElementById('reportFunction').value = r.edge_function;
+  document.getElementById('reportTime').value = r.send_time;
+  document.getElementById('reportFrequency').value = r.frequency;
+  document.getElementById('reportDay').value = r.send_day || 'monday';
+  document.getElementById('sendDayRow').style.display = r.frequency !== 'daily' ? 'block' : 'none';
+  document.getElementById('reportModalTitle').textContent = 'Edit Report Schedule';
+  populateTeamDropdown();
+  setTimeout(() => { document.getElementById('reportTeam').value = r.team_id || ''; }, 0);
+  openModal('reportModal');
+}
+
+document.getElementById('reportFrequency').addEventListener('change', function() {
+  document.getElementById('sendDayRow').style.display = this.value !== 'daily' ? 'block' : 'none';
+});
+
+document.getElementById('saveReportBtn').addEventListener('click', async () => {
+  const id = document.getElementById('reportId').value;
+  const freq = document.getElementById('reportFrequency').value;
+  const body = {
+    name: document.getElementById('reportName').value.trim(),
+    edge_function: document.getElementById('reportFunction').value.trim(),
+    team_id: document.getElementById('reportTeam').value || null,
+    frequency: freq,
+    send_time: document.getElementById('reportTime').value.trim(),
+    send_day: freq !== 'daily' ? document.getElementById('reportDay').value : null,
+    updated_at: new Date().toISOString(),
+  };
+  if (!body.name || !body.edge_function) { showToast('Name and function are required'); return; }
+  if (id) {
+    await patch(`report_schedules?id=eq.${id}`, body);
+    showToast('Schedule updated');
+  } else {
+    await post('report_schedules', { ...body, is_active: true });
+    showToast('Schedule added');
+  }
+  closeModal('reportModal');
+  await loadReports();
+  renderReports();
+});
+
+async function toggleReport(id, isActive) {
+  await patch(`report_schedules?id=eq.${id}`, { is_active: !isActive, updated_at: new Date().toISOString() });
+  showToast(isActive ? 'Report paused' : 'Report resumed');
+  await loadReports();
+  renderReports();
+}
+</script>
+</body>
+</html>
