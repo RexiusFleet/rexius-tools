@@ -667,8 +667,8 @@ async function toggleExpand(id) {
   // Load detail
   try {
     const [responsesRes, defectsRes] = await Promise.all([
-      fetch(`${SUPA}/rest/v1/inspection_responses?inspection_id=eq.${id}&select=id,pass_fail_value,text_value,number_value,notes,inspection_form_items(title,item_type,category)&order=inspection_form_items(order_index)`, { headers: H }),
-      fetch(`${SUPA}/rest/v1/defects?select=id,severity,description,status,category&reported_via_inspection_response_id=in.(select id from inspection_responses where inspection_id='${id}')`, { headers: H }),
+      fetch(`${SUPA}/rest/v1/inspection_responses?inspection_id=eq.${id}&select=id,pass_fail_value,text_value,number_value,notes,inspection_form_items!inspection_responses_form_item_id_fkey(title,item_type,category)`, { headers: H }),
+      Promise.resolve([]),
     ]);
     const responses = await responsesRes.json();
     // Fetch defects linked to this inspection via responses
