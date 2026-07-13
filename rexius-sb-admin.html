@@ -157,6 +157,8 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
     <button class="tab active" data-tab="people">People</button>
     <button class="tab" data-tab="groups">Notification Groups</button>
     <button class="tab" data-tab="reports">Report Schedules</button>
+    <button class="tab" data-tab="forms">Inspection Forms</button>
+    <button class="tab" data-tab="assignments">Form Assignments</button>
   </div>
 
   <!-- PEOPLE TAB -->
@@ -199,6 +201,30 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
     <div class="section-title">Report Schedules</div>
     <div class="section-sub">Manage when daily, weekly, and monthly fleet reports are sent.</div>
     <div id="reportsList"><div class="spinner">Loading…</div></div>
+  </div>
+
+  <!-- FORMS TAB -->
+  <div id="tab-forms" class="wrap" style="display:none">
+    <div class="section-title">Inspection Forms</div>
+    <div class="section-sub">View and edit inspection forms and their questions.</div>
+    <div id="formsList"><div class="spinner">Loading…</div></div>
+  </div>
+
+  <!-- ASSET FORM ASSIGNMENTS TAB -->
+  <div id="tab-assignments" class="wrap" style="display:none">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:12px">
+      <div>
+        <div class="section-title">Form Assignments</div>
+        <div class="section-sub">Override the default team form for specific assets. Assets without an override use their team's default.</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+      <input class="form-input" id="assignSearch" placeholder="Search by asset number, make, or model…" style="flex:1;min-width:200px" oninput="renderAssignments()">
+      <select class="form-select" id="assignTeamFilter" style="min-width:160px" onchange="renderAssignments()">
+        <option value="">All teams</option>
+      </select>
+    </div>
+    <div id="assignmentsList"><div class="spinner">Loading…</div></div>
   </div>
 </div>
 
@@ -332,6 +358,108 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
   </div>
 </div>
 
+<!-- EDIT FORM NAME MODAL -->
+<div class="modal-overlay" id="formNameModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Rename Form</div>
+      <button class="modal-close" data-close="formNameModal">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="formNameId">
+      <div class="form-row">
+        <label class="form-label">Form Name</label>
+        <input class="form-input" id="formNameInput" placeholder="Form name">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" data-close="formNameModal">Cancel</button>
+      <button class="btn btn-primary" id="saveFormNameBtn">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT FORM ITEM MODAL -->
+<div class="modal-overlay" id="formItemModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="formItemModalTitle">Edit Question</div>
+      <button class="modal-close" data-close="formItemModal">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="formItemId">
+      <div class="form-row">
+        <label class="form-label">Question Title</label>
+        <input class="form-input" id="formItemTitle" placeholder="Question text">
+      </div>
+      <div class="form-grid">
+        <div class="form-row">
+          <label class="form-label">Type</label>
+          <select class="form-select" id="formItemType">
+            <option value="pass_fail">Pass / Fail</option>
+            <option value="number">Number</option>
+            <option value="text">Text / Notes</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label class="form-label">Category</label>
+          <select class="form-select" id="formItemCategory">
+            <option value="engine">Engine</option>
+            <option value="brakes">Brakes</option>
+            <option value="tires">Tires</option>
+            <option value="lights">Lights</option>
+            <option value="steering">Steering</option>
+            <option value="safety_eq">Safety Equipment</option>
+            <option value="body">Body</option>
+            <option value="exhaust">Exhaust</option>
+            <option value="hitch">Hitch / Trailer</option>
+            <option value="blower">Blower System</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger" id="deleteFormItemBtn">Remove</button>
+      <button class="btn" data-close="formItemModal">Cancel</button>
+      <button class="btn btn-primary" id="saveFormItemBtn">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ASSET FORM ASSIGNMENT MODAL -->
+<div class="modal-overlay" id="assignModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="assignModalTitle">Assign Form</div>
+      <button class="modal-close" data-close="assignModal">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="assignAssetId">
+      <div id="assignAssetDesc" style="font-size:13px;color:var(--gray);margin-bottom:14px"></div>
+      <div class="form-row">
+        <label class="form-label">Inspection Type</label>
+        <select class="form-select" id="assignInspType">
+          <option value="vehicle_pretrip">Vehicle Pre-Trip</option>
+          <option value="vehicle_posttrip">Vehicle Post-Trip</option>
+          <option value="equip_preshift">Equipment Pre-Shift</option>
+          <option value="equip_postshift">Equipment Post-Shift</option>
+          <option value="trailer_pretrip">Trailer Pre-Trip</option>
+          <option value="trailer_posttrip">Trailer Post-Trip</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Form</label>
+        <select class="form-select" id="assignFormId"></select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" data-close="assignModal">Cancel</button>
+      <button class="btn btn-primary" id="saveAssignBtn">Save Assignment</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -429,10 +557,13 @@ function esc(s) {
 
 // ── Load all data ─────────────────────────────────────────────────
 async function loadAll() {
-  await Promise.all([loadPeople(), loadTeams(), loadRecipients(), loadReports()]);
+  await Promise.all([loadPeople(), loadTeams(), loadRecipients(), loadReports(), loadForms(), loadFormItems(), loadAssets(), loadAssignments()]);
   filterAndRenderPeople();
   renderGroups();
   renderReports();
+  renderForms();
+  populateAssignTeamFilter();
+  renderAssignments();
 }
 
 async function loadPeople() {
@@ -783,6 +914,223 @@ async function toggleReport(id, isActive) {
   showToast(isActive ? 'Report paused' : 'Report resumed');
   await loadReports();
   renderReports();
+}
+
+// ── FORMS DATA ────────────────────────────────────────────────────
+let allForms = [];
+let allFormItems = [];
+let allAssets = [];
+let allAssignments = [];
+
+async function loadForms() {
+  allForms = await get('inspection_forms?is_active=eq.true&order=name&select=id,name');
+}
+async function loadFormItems() {
+  allFormItems = await get('inspection_form_items?is_active=eq.true&order=form_id,order_index&select=id,form_id,title,item_type,category,order_index,is_active');
+}
+async function loadAssets() {
+  allAssets = await get('assets?deleted_at=is.null&order=asset_number&select=id,asset_number,make,model,year,team_id,teams(name)');
+}
+async function loadAssignments() {
+  allAssignments = await get('asset_inspection_forms?is_active=eq.true&select=id,asset_id,form_id,inspection_type,lang,inspection_forms(name)');
+}
+
+// ── FORMS TAB ─────────────────────────────────────────────────────
+function renderForms() {
+  const el = document.getElementById('formsList');
+  if (!allForms.length) { el.innerHTML = '<div class="empty">No forms found.</div>'; return; }
+
+  el.innerHTML = allForms.map(f => {
+    const items = allFormItems.filter(i => i.form_id === f.id).sort((a,b) => a.order_index - b.order_index);
+    const itemsHtml = items.length === 0
+      ? '<div style="font-size:12px;color:var(--gray);padding:6px 0">No questions.</div>'
+      : items.map(item => {
+          const typeBadge = item.item_type === 'pass_fail' ? 'P/F' : item.item_type === 'number' ? '123' : 'TXT';
+          const isSep = item.title.startsWith('—') && item.title.endsWith('—');
+          if (isSep) return `<div style="padding:4px 0;font-family:var(--mono);font-size:10px;font-weight:700;color:var(--gray);letter-spacing:.1em;text-transform:uppercase;border-top:1px solid var(--border);margin:4px 0">${item.title}</div>`;
+          return `<div style="display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid var(--border)">
+            <span style="font-family:var(--mono);font-size:9px;color:var(--gray);min-width:18px;text-align:right">${item.order_index}</span>
+            <span style="flex:1;font-size:13px">${esc(item.title)}</span>
+            <span style="font-family:var(--mono);font-size:9px;color:var(--gray);background:var(--surface);padding:1px 5px">${typeBadge}</span>
+            <span style="font-family:var(--mono);font-size:9px;color:var(--gray)">${item.category}</span>
+            <button class="btn btn-sm" onclick="editFormItem('${item.id}')">Edit</button>
+          </div>`;
+        }).join('');
+
+    return `<div class="card" style="margin-bottom:12px">
+      <div class="card-head">
+        <div>
+          <div class="card-title">${esc(f.name)}</div>
+          <div class="card-sub">${items.length} question${items.length !== 1 ? 's' : ''}</div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-sm" onclick="addFormItem('${f.id}')">+ Add Question</button>
+          <button class="btn btn-sm" onclick="renameForm('${f.id}','${esc(f.name)}')">Rename</button>
+        </div>
+      </div>
+      <div class="card-body" style="padding:0 16px">${itemsHtml}</div>
+    </div>`;
+  }).join('');
+}
+
+function renameForm(id, currentName) {
+  document.getElementById('formNameId').value = id;
+  document.getElementById('formNameInput').value = currentName;
+  openModal('formNameModal');
+}
+
+document.getElementById('saveFormNameBtn').addEventListener('click', async () => {
+  const id = document.getElementById('formNameId').value;
+  const name = document.getElementById('formNameInput').value.trim();
+  if (!name) { showToast('Name required'); return; }
+  await patch(`inspection_forms?id=eq.${id}`, { name });
+  showToast('Form renamed');
+  closeModal('formNameModal');
+  await loadForms();
+  renderForms();
+});
+
+function editFormItem(id) {
+  const item = allFormItems.find(i => i.id === id);
+  if (!item) return;
+  document.getElementById('formItemId').value = id;
+  document.getElementById('formItemTitle').value = item.title;
+  document.getElementById('formItemType').value = item.item_type;
+  document.getElementById('formItemCategory').value = item.category || 'other';
+  document.getElementById('formItemModalTitle').textContent = 'Edit Question';
+  openModal('formItemModal');
+}
+
+function addFormItem(formId) {
+  document.getElementById('formItemId').value = '';
+  document.getElementById('formItemTitle').value = '';
+  document.getElementById('formItemType').value = 'pass_fail';
+  document.getElementById('formItemCategory').value = 'other';
+  document.getElementById('formItemModalTitle').textContent = 'Add Question to Form';
+  document.getElementById('formItemModal').dataset.formId = formId;
+  openModal('formItemModal');
+}
+
+document.getElementById('saveFormItemBtn').addEventListener('click', async () => {
+  const id = document.getElementById('formItemId').value;
+  const body = {
+    title: document.getElementById('formItemTitle').value.trim(),
+    item_type: document.getElementById('formItemType').value,
+    category: document.getElementById('formItemCategory').value,
+  };
+  if (!body.title) { showToast('Title required'); return; }
+  if (id) {
+    await patch(`inspection_form_items?id=eq.${id}`, body);
+    showToast('Question updated');
+  } else {
+    const formId = document.getElementById('formItemModal').dataset.formId;
+    const existing = allFormItems.filter(i => i.form_id === formId);
+    const nextIdx = existing.length ? Math.max(...existing.map(i => i.order_index)) + 1 : 1;
+    await post('inspection_form_items', { ...body, form_id: formId, order_index: nextIdx, is_active: true, is_required: false });
+    showToast('Question added');
+  }
+  closeModal('formItemModal');
+  await loadFormItems();
+  renderForms();
+});
+
+document.getElementById('deleteFormItemBtn').addEventListener('click', async () => {
+  const id = document.getElementById('formItemId').value;
+  if (!id) return;
+  if (!confirm('Remove this question from the form?')) return;
+  await patch(`inspection_form_items?id=eq.${id}`, { is_active: false });
+  showToast('Question removed');
+  closeModal('formItemModal');
+  await loadFormItems();
+  renderForms();
+});
+
+// ── ASSET FORM ASSIGNMENTS TAB ────────────────────────────────────
+function populateAssignTeamFilter() {
+  const sel = document.getElementById('assignTeamFilter');
+  const current = sel.value;
+  sel.innerHTML = '<option value="">All teams</option>' +
+    allTeams.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join('');
+  if (current) sel.value = current;
+}
+
+function renderAssignments() {
+  const el = document.getElementById('assignmentsList');
+  const q = (document.getElementById('assignSearch').value || '').toLowerCase();
+  const teamId = document.getElementById('assignTeamFilter').value;
+
+  let assets = allAssets;
+  if (teamId) assets = assets.filter(a => a.team_id === teamId);
+  if (q) assets = assets.filter(a =>
+    (a.asset_number || '').toLowerCase().includes(q) ||
+    (a.make || '').toLowerCase().includes(q) ||
+    (a.model || '').toLowerCase().includes(q)
+  );
+
+  if (!assets.length) { el.innerHTML = '<div class="empty">No assets match.</div>'; return; }
+
+  el.innerHTML = assets.map(a => {
+    const overrides = allAssignments.filter(x => x.asset_id === a.id);
+    const teamName = a.teams?.name || '—';
+    const desc = [a.year, a.make, a.model].filter(Boolean).join(' ');
+    const overrideHtml = overrides.length === 0
+      ? '<span style="font-size:11px;color:var(--gray)">Using team default</span>'
+      : overrides.map(o => `
+          <span style="font-family:var(--mono);font-size:10px;background:var(--green-light);color:var(--green);padding:2px 7px;margin-right:4px">
+            ${esc(o.inspection_type.replace(/_/g,' '))}
+          </span>
+          <span style="font-size:11px;color:var(--gray)">${esc(o.inspection_forms?.name || '—')}</span>
+          <button class="btn btn-sm btn-danger" style="margin-left:6px" onclick="removeAssignment('${o.id}')">×</button>
+        `).join('<br style="margin:3px 0">');
+
+    return `<div style="background:var(--paper);border:1px solid var(--border);margin-bottom:6px;padding:10px 14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <div style="min-width:60px">
+        <span style="font-family:var(--mono);font-size:14px;font-weight:700">${esc(a.asset_number)}</span>
+      </div>
+      <div style="flex:1;min-width:160px">
+        <div style="font-size:12px;font-weight:500">${esc(desc)}</div>
+        <div style="font-size:11px;color:var(--gray)">${esc(teamName)}</div>
+      </div>
+      <div style="flex:2;min-width:200px">${overrideHtml}</div>
+      <button class="btn btn-sm" onclick="openAssignModal('${a.id}','${esc(a.asset_number)}','${esc(desc)}')">+ Assign Form</button>
+    </div>`;
+  }).join('');
+}
+
+function openAssignModal(assetId, assetNum, desc) {
+  document.getElementById('assignAssetId').value = assetId;
+  document.getElementById('assignModalTitle').textContent = `Assign Form — ${assetNum}`;
+  document.getElementById('assignAssetDesc').textContent = desc;
+  // Populate form dropdown
+  const sel = document.getElementById('assignFormId');
+  sel.innerHTML = allForms.map(f => `<option value="${f.id}">${esc(f.name)}</option>`).join('');
+  openModal('assignModal');
+}
+
+document.getElementById('saveAssignBtn').addEventListener('click', async () => {
+  const assetId = document.getElementById('assignAssetId').value;
+  const formId = document.getElementById('assignFormId').value;
+  const inspType = document.getElementById('assignInspType').value;
+  // Check for existing override on same asset+type+lang
+  const existing = allAssignments.find(a => a.asset_id === assetId && a.inspection_type === inspType && a.lang === 'en');
+  if (existing) {
+    await patch(`asset_inspection_forms?id=eq.${existing.id}`, { form_id: formId, is_active: true });
+    showToast('Assignment updated');
+  } else {
+    await post('asset_inspection_forms', { asset_id: assetId, form_id: formId, inspection_type: inspType, lang: 'en', is_active: true });
+    showToast('Form assigned');
+  }
+  closeModal('assignModal');
+  await loadAssignments();
+  renderAssignments();
+});
+
+async function removeAssignment(id) {
+  if (!confirm('Remove this form override? Asset will use team default.')) return;
+  await patch(`asset_inspection_forms?id=eq.${id}`, { is_active: false });
+  showToast('Assignment removed');
+  await loadAssignments();
+  renderAssignments();
 }
 </script>
 </body>
