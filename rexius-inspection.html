@@ -616,7 +616,7 @@ async function getTypes() {
   if (ref.includes('equipment')) return ['equip_preshift','equip_postshift'];
   if (num.includes('trailer')) return ['trailer_pretrip','trailer_posttrip'];
   if (asset?.id && await assetHasOverride(asset.id)) return ['vehicle_pretrip','vehicle_posttrip'];
-  return ['vehicle_pretrip','vehicle_posttrip','trailer_pretrip','trailer_posttrip'];
+  return ['vehicle_pretrip','vehicle_posttrip'];
 }
 
 const TYPE_DEF = {
@@ -771,12 +771,19 @@ function renderChecklist() {
         </div>
       </div>`;
     } else if (item.item_type === 'text') {
-      html += `<div class="check-item" id="ci-${item.id}">
-        <div class="check-row" style="flex-direction:column;align-items:flex-start">
-          <div class="check-label">${label}</div>
-          <textarea class="check-textarea" data-item-id="${item.id}" placeholder="${lang === 'es' ? 'Notas...' : 'Notes...'}">${resp.value || ''}</textarea>
-        </div>
-      </div>`;
+      // Section separator header — rendered as a divider, not an input
+      if (item.title.startsWith('—') && item.title.endsWith('—')) {
+        html += `<div style="margin:18px 0 10px;padding:6px 0;border-top:2px solid var(--border);border-bottom:1px solid var(--border)">
+          <span style="font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--gray)">${item.title.replace(/^—\s*|\s*—$/g,'').trim()}</span>
+        </div>`;
+      } else {
+        html += `<div class="check-item" id="ci-${item.id}">
+          <div class="check-row" style="flex-direction:column;align-items:flex-start">
+            <div class="check-label">${label}</div>
+            <textarea class="check-textarea" data-item-id="${item.id}" placeholder="${lang === 'es' ? 'Notas...' : 'Notes...'}">${resp.value || ''}</textarea>
+          </div>
+        </div>`;
+      }
     }
   });
   container.innerHTML = html;
@@ -905,7 +912,8 @@ async function submitInspection() {
     const formId = await resolveFormId(asset, inspType, lang);
     if (!formId) throw new Error('No form found');
 
-    const respRows = formItems.filter(i => i.item_type !== 'signature').map(item => {
+    const isSeparator = i => i.item_type === 'text' && i.title.startsWith('—') && i.title.endsWith('—');
+    const respRows = formItems.filter(i => i.item_type !== 'signature' && !isSeparator(i)).map(item => {
       const resp = responses[item.id] || {};
       return {
         form_item_id: item.id,
