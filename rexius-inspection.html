@@ -614,6 +614,7 @@ async function getTypes() {
   const ref = (teamRef||'').toLowerCase();
   const num = (asset?.asset_number||'').toLowerCase();
   if (ref.includes('equipment')) return ['equip_preshift','equip_postshift'];
+  if (num.startsWith('ge-')) return ['equip_preshift','equip_postshift'];
   if (num.includes('trailer')) return ['trailer_pretrip','trailer_posttrip'];
   if (asset?.id && await assetHasOverride(asset.id)) return ['vehicle_pretrip','vehicle_posttrip'];
   return ['vehicle_pretrip','vehicle_posttrip'];
