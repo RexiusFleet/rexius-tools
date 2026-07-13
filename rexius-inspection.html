@@ -137,6 +137,8 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
 
 .check-number { width: 100%; font-family: var(--mono); font-size: 15px; padding: 9px 12px; border: 1px solid var(--border); background: var(--paper); color: var(--ink); outline: none; margin-top: 6px; }
 .check-number:focus { border-color: var(--green); }
+.check-select { width: 100%; font-family: var(--body); font-size: 15px; padding: 9px 12px; border: 1px solid var(--border); background: var(--paper); color: var(--ink); outline: none; margin-top: 6px; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%236b7280' d='M6 8L0 0h12z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; }
+.check-select:focus { border-color: var(--green); }
 .check-textarea { width: 100%; font-family: var(--body); font-size: 14px; padding: 9px 12px; border: 1px solid var(--border); background: var(--paper); color: var(--ink); resize: none; min-height: 72px; outline: none; margin-top: 6px; }
 .check-textarea:focus { border-color: var(--green); }
 
@@ -413,6 +415,12 @@ document.addEventListener('click', e => {
 // Input delegation for dynamically generated inputs/textareas
 document.addEventListener('input', e => {
   const el = e.target;
+
+  // Select checklist items (equipment type dropdown etc.)
+  if (el.classList.contains('check-select') && el.dataset.itemId) {
+    setResp(el.dataset.itemId, el.value, true);
+    return;
+  }
 
   // Number/text checklist inputs — skipRender=true to avoid jumping to top on each keystroke
   if (el.classList.contains('check-number') && el.dataset.itemId) {
@@ -771,6 +779,17 @@ function renderChecklist() {
           <input type="number" class="check-number" data-item-id="${item.id}" placeholder="0" value="${resp.value || ''}">
         </div>
       </div>`;
+    } else if (item.item_type === 'select') {
+      const options = Array.isArray(item.options) ? item.options : [];
+      html += `<div class="check-item" id="ci-${item.id}">
+        <div class="check-row" style="flex-direction:column;align-items:flex-start">
+          <div class="check-label">${label}${item.is_required ? ' *' : ''}</div>
+          <select class="check-select" data-item-id="${item.id}">
+            <option value="">${lang === 'es' ? 'Seleccionar...' : 'Select...'}</option>
+            ${options.map(o => `<option value="${o}"${resp.value === o ? ' selected' : ''}>${o}</option>`).join('')}
+          </select>
+        </div>
+      </div>`;
     } else if (item.item_type === 'text') {
       // Section separator header — rendered as a divider, not an input
       if (item.title.startsWith('—') && item.title.endsWith('—')) {
@@ -829,8 +848,10 @@ function setSev(id, sev) { if (!responses[id]) responses[id] = {}; responses[id]
 
 function updateProgress() {
   const pfItems = formItems.filter(i => i.item_type === 'pass_fail');
-  const answered = pfItems.filter(i => responses[i.id]?.value).length;
-  const total = pfItems.length;
+  const selItems = formItems.filter(i => i.item_type === 'select' && i.is_required);
+  const allRequired = [...pfItems, ...selItems];
+  const answered = allRequired.filter(i => responses[i.id]?.value).length;
+  const total = allRequired.length;
   const pct = total ? Math.round(answered / total * 100) : 0;
   document.getElementById('progressFill').style.width = pct + '%';
   document.getElementById('progressLabel').textContent = `${answered} of ${total}`;
@@ -920,7 +941,7 @@ async function submitInspection() {
         form_item_id: item.id,
         pass_fail_value: item.item_type === 'pass_fail' ? (resp.value || null) : null,
         number_value: item.item_type === 'number' ? (resp.value ? parseFloat(resp.value) : null) : null,
-        text_value: item.item_type === 'text' ? (resp.value || null) : null,
+        text_value: (item.item_type === 'text' || item.item_type === 'select') ? (resp.value || null) : null,
         notes: resp.notes || null,
       };
     });
