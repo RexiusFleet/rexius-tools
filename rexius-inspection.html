@@ -221,6 +221,10 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
       <button class="lang-btn" id="langEs2">ES</button>
     </div>
   </div>
+  <div style="display:flex;gap:8px;padding:8px 16px;background:var(--surface);border-bottom:1px solid var(--border)">
+    <button class="back-btn" id="startOverBtn" style="font-size:11px;padding:5px 12px">Start Over</button>
+    <button class="back-btn" id="differentVehicleBtn" style="font-size:11px;padding:5px 12px">Different Vehicle</button>
+  </div>
   <div class="content">
     <div class="progress-wrap">
       <div class="progress-labels">
@@ -233,7 +237,7 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
     <div class="cert-box" id="certBox">
       <label class="cert-label">
         <input type="checkbox" class="cert-check" id="certCheck">
-        <span class="cert-text" id="certText">I certify that I am the person named above and that this inspection was conducted by me to the best of my ability.</span>
+        <span class="cert-text" id="certText"></span>
       </label>
     </div>
     <button class="submit-btn" id="submitBtn" disabled>Submit Inspection</button>
@@ -245,17 +249,17 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
 <div class="screen" id="screenReview">
   <div class="topbar">
     <button class="back-btn" id="reviewBackBtn">← Back</button>
-    <div class="topbar-center">Review Defects</div>
+    <div class="topbar-center" id="reviewTopCenter">Review Defects</div>
     <div></div>
   </div>
   <div class="content">
     <div class="card" style="margin-bottom:14px;padding:16px">
-      <div style="font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--red);margin-bottom:10px">Defects Flagged</div>
+      <div id="reviewDefectsFlag" style="font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--red);margin-bottom:10px">Defects Flagged</div>
       <div id="reviewDefectList"></div>
     </div>
     <div class="card" style="padding:16px;margin-bottom:14px">
-      <div style="font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#555;margin-bottom:6px">Your Phone Number</div>
-      <div style="font-size:12px;color:var(--gray);margin-bottom:8px">So the shop can reach you if they have questions about this defect.</div>
+      <div id="reviewYourPhone" style="font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#555;margin-bottom:6px">Your Phone Number</div>
+      <div id="reviewYourPhoneSub" style="font-size:12px;color:var(--gray);margin-bottom:8px">So the shop can reach you if they have questions about this defect.</div>
       <input type="tel" id="contactPhone" class="driver-input" placeholder="000-000-0000" style="width:100%;font-size:16px;padding:10px 12px;border:1px solid var(--border);background:#fff;outline:none" inputmode="tel">
     </div>
     <button class="submit-btn" id="reviewSubmitBtn">Confirm &amp; Submit</button>
@@ -305,10 +309,16 @@ const T = {
     assetLabel: 'Select Asset', newTag: 'NEW',
     defectLabel: 'Describe defect', addPhoto: '📷  Add Photo',
     sev: { minor: 'Minor', critical: 'Critical' },
-    cert: 'I certify that I am the person named above and that this inspection was conducted by me to the best of my ability.',
+    cert: (name) => `I, ${name}, certify that I conducted this inspection to the best of my ability.`,
     successTitle: 'Submitted', successSub: 'Inspection recorded successfully.',
     newInsp: 'New Inspection', submitting: 'Submitting...', loading: 'Loading...',
     inService: 'In Service', outOfService: 'Out of Service',
+    startOver: 'Start Over', differentVehicle: 'Different Vehicle',
+    reviewDefects: 'Review Defects', defectsFlag: 'Defects Flagged',
+    yourPhone: 'Your Phone Number',
+    yourPhoneSub: 'So the shop can reach you if they have questions about this defect.',
+    confirmSubmit: 'Confirm & Submit',
+    backBtn: '← Back',
   },
   es: {
     typeCardLabel: 'Tipo de Inspección', driverCardLabel: 'Conductor / Operador',
@@ -318,10 +328,16 @@ const T = {
     assetLabel: 'Seleccionar Activo', newTag: 'NUEVO',
     defectLabel: 'Describir defecto', addPhoto: '📷  Agregar Foto',
     sev: { minor: 'Menor', critical: 'Crítico' },
-    cert: 'Certifico que soy la persona indicada y que realicé esta inspección de la mejor manera posible.',
+    cert: (name) => `Yo, ${name}, certifico que realicé esta inspección de la mejor manera posible.`,
     successTitle: 'Enviado', successSub: 'Inspección registrada correctamente.',
     newInsp: 'Nueva Inspección', submitting: 'Enviando...', loading: 'Cargando...',
     inService: 'En Servicio', outOfService: 'Fuera de Servicio',
+    startOver: 'Empezar de Nuevo', differentVehicle: 'Vehículo Diferente',
+    reviewDefects: 'Revisar Defectos', defectsFlag: 'Defectos Marcados',
+    yourPhone: 'Su Número de Teléfono',
+    yourPhoneSub: 'Para que el taller pueda comunicarse si tiene preguntas sobre este defecto.',
+    confirmSubmit: 'Confirmar y Enviar',
+    backBtn: '← Atrás',
   }
 };
 const t = k => T[lang][k] || T.en[k] || k;
@@ -336,6 +352,29 @@ document.getElementById('startBtn').addEventListener('click', e => { e.stopPropa
 document.getElementById('submitBtn').addEventListener('click', e => { e.stopPropagation(); handleSubmitClick(); });
 document.getElementById('reviewSubmitBtn').addEventListener('click', () => submitInspection());
 document.getElementById('reviewBackBtn').addEventListener('click', () => showScreen('screenChecklist'));
+
+// Start Over — reload page preserving the original asset QR param
+document.getElementById('startOverBtn').addEventListener('click', () => {
+  const params = new URLSearchParams(location.search);
+  const assetParam = params.get('asset') || params.get('a');
+  location.href = assetParam
+    ? `${location.pathname}?asset=${encodeURIComponent(assetParam)}`
+    : location.pathname;
+});
+
+// Different Vehicle — go to setup with no asset pre-selected
+document.getElementById('differentVehicleBtn').addEventListener('click', () => {
+  asset = null; inspType = null; selectedDriver = null;
+  responses = {}; defectPhotos = {}; formItems = [];
+  document.getElementById('assetHero').innerHTML = '';
+  document.getElementById('driverInput').value = '';
+  document.getElementById('driverBadge').style.display = 'none';
+  renderTypeGrid();
+  checkCanStart();
+  showScreen('screenSetup');
+  // Clear the URL param so the setup screen doesn't auto-load an asset
+  history.replaceState({}, '', location.pathname);
+});
 
 function handleSubmitClick() {
   const failures = formItems.filter(i => responses[i.id]?.value === 'fail');
@@ -486,9 +525,27 @@ function refreshLabels() {
   const sb = document.getElementById('startBtn');
   if (sb) sb.textContent = t('startBtn');
   const ct = document.getElementById('certText');
-  if (ct) ct.textContent = t('cert');
+  if (ct) ct.textContent = t('cert')(selectedDriver?.name || '___');
   const sub = document.getElementById('submitBtn');
   if (sub) sub.textContent = t('submitBtn');
+  const rsb = document.getElementById('reviewSubmitBtn');
+  if (rsb) rsb.textContent = t('confirmSubmit');
+  const rbb = document.getElementById('reviewBackBtn');
+  if (rbb) rbb.textContent = t('backBtn');
+  const rtc = document.getElementById('reviewTopCenter');
+  if (rtc) rtc.textContent = t('reviewDefects');
+  const rdf = document.getElementById('reviewDefectsFlag');
+  if (rdf) rdf.textContent = t('defectsFlag');
+  const ryp = document.getElementById('reviewYourPhone');
+  if (ryp) ryp.textContent = t('yourPhone');
+  const ryps = document.getElementById('reviewYourPhoneSub');
+  if (ryps) ryps.textContent = t('yourPhoneSub');
+  const sob = document.getElementById('startOverBtn');
+  if (sob) sob.textContent = t('startOver');
+  const dvb = document.getElementById('differentVehicleBtn');
+  if (dvb) dvb.textContent = t('differentVehicle');
+  const bb = document.getElementById('backBtn');
+  if (bb) bb.textContent = t('backBtn');
   renderTypeGrid();
   if (formItems.length) renderChecklist();
 }
@@ -684,6 +741,8 @@ function pickDriver(idx) {
   document.getElementById('driverDrop').classList.remove('open');
   document.getElementById('driverBadge').style.display = 'flex';
   document.getElementById('driverBadgeName').textContent = d.name + (d.isNew ? ` (${t('newTag')})` : '');
+  const ct = document.getElementById('certText');
+  if (ct) ct.textContent = t('cert')(d.name);
   checkCanStart();
 }
 
@@ -691,6 +750,8 @@ function clearDriver() {
   selectedDriver = null;
   document.getElementById('driverInput').value = '';
   document.getElementById('driverBadge').style.display = 'none';
+  const ct = document.getElementById('certText');
+  if (ct) ct.textContent = t('cert')('___');
   checkCanStart();
 }
 
