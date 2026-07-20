@@ -221,9 +221,9 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
       <button class="lang-btn" id="langEs2">ES</button>
     </div>
   </div>
-  <div style="display:flex;gap:8px;padding:8px 16px;background:var(--surface);border-bottom:1px solid var(--border)">
-    <button class="back-btn" id="startOverBtn" style="font-size:11px;padding:5px 12px">Start Over</button>
-    <button class="back-btn" id="differentVehicleBtn" style="font-size:11px;padding:5px 12px">Different Vehicle</button>
+  <div style="display:flex;gap:8px;padding:8px 16px;background:var(--ink);border-bottom:1px solid rgba(255,255,255,.1)">
+    <button id="startOverBtn" style="font-family:var(--mono);font-size:11px;padding:5px 12px;background:none;border:1px solid rgba(255,255,255,.3);color:rgba(255,255,255,.8);cursor:pointer;letter-spacing:.04em">Start Over</button>
+    <button id="differentVehicleBtn" style="font-family:var(--mono);font-size:11px;padding:5px 12px;background:none;border:1px solid rgba(255,255,255,.3);color:rgba(255,255,255,.8);cursor:pointer;letter-spacing:.04em">Different Vehicle</button>
   </div>
   <div class="content">
     <div class="progress-wrap">
@@ -362,18 +362,19 @@ document.getElementById('startOverBtn').addEventListener('click', () => {
     : location.pathname;
 });
 
-// Different Vehicle — go to setup with no asset pre-selected
+// Different Vehicle — reset everything and show asset search on setup screen
 document.getElementById('differentVehicleBtn').addEventListener('click', () => {
   asset = null; inspType = null; selectedDriver = null;
   responses = {}; defectPhotos = {}; formItems = [];
-  document.getElementById('assetHero').innerHTML = '';
   document.getElementById('driverInput').value = '';
   document.getElementById('driverBadge').style.display = 'none';
+  const ct = document.getElementById('certText');
+  if (ct) ct.textContent = t('cert')('___');
+  history.replaceState({}, '', location.pathname);
+  showAssetSearch();
   renderTypeGrid();
   checkCanStart();
   showScreen('screenSetup');
-  // Clear the URL param so the setup screen doesn't auto-load an asset
-  history.replaceState({}, '', location.pathname);
 });
 
 function handleSubmitClick() {
