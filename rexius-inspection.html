@@ -211,7 +211,32 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
   </div>
 </div>
 
-<!-- SCREEN 2: CHECKLIST -->
+<!-- SCREEN 2: PRIOR DEFECTS (CDL vehicles only) -->
+<div class="screen" id="screenPriorDefects">
+  <div class="topbar">
+    <button class="back-btn" onclick="showScreen('screenSetup')">← Back</button>
+    <div class="topbar-center">Previous Inspection Defects</div>
+    <div></div>
+  </div>
+  <div class="content">
+    <div class="card" style="margin-bottom:14px;padding:16px;border-left:4px solid var(--amber)">
+      <div style="font-family:var(--mono);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--amber);margin-bottom:6px">§396.11 — CDL Vehicle</div>
+      <div style="font-size:13px;color:var(--ink)">The previous inspection reported defects on this vehicle. Review the status below before proceeding.</div>
+      <div style="font-size:11px;color:var(--gray);margin-top:4px" id="priorInspDate"></div>
+    </div>
+    <div id="priorDefectList" style="margin-bottom:14px"></div>
+    <div class="card" style="padding:14px;margin-bottom:14px">
+      <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer">
+        <input type="checkbox" id="priorDefectsAck" style="margin-top:2px;width:18px;height:18px;flex-shrink:0">
+        <span style="font-size:13px;line-height:1.4">I have reviewed the prior defects. Any required repairs have been completed or the vehicle has been certified safe to operate.</span>
+      </label>
+    </div>
+    <button class="submit-btn" id="priorDefectsContinueBtn" disabled>Continue to Inspection</button>
+    <div style="height:40px"></div>
+  </div>
+</div>
+
+<!-- SCREEN 3: CHECKLIST -->
 <div class="screen" id="screenChecklist">
   <div class="topbar">
     <button class="back-btn" id="backBtn">← Back</button>
@@ -355,11 +380,14 @@ document.getElementById('reviewBackBtn').addEventListener('click', () => showScr
 
 // Start Over — reload page preserving the original asset QR param
 document.getElementById('startOverBtn').addEventListener('click', () => {
-  const params = new URLSearchParams(location.search);
-  const assetParam = params.get('asset') || params.get('a');
-  location.href = assetParam
-    ? `${location.pathname}?asset=${encodeURIComponent(assetParam)}`
-    : location.pathname;
+  // Use the stored original URL if we have it, otherwise reconstruct from asset number
+  if (window._originalUrl) {
+    location.href = window._originalUrl;
+  } else if (asset?.asset_number) {
+    location.href = `${location.pathname}?asset=${encodeURIComponent(asset.asset_number)}`;
+  } else {
+    location.reload();
+  }
 });
 
 // Different Vehicle — reset everything and show asset search on setup screen
@@ -553,6 +581,7 @@ function refreshLabels() {
 
 // ── Init ───────────────────────────────────────────────────────────
 async function init() {
+  window._originalUrl = location.href; // store before anything modifies history
   showLoading(true, t('loading'));
   await loadPeople();
   const params = new URLSearchParams(location.search);
@@ -578,7 +607,7 @@ async function loadPeople() {
     allPeople = allPeople.filter(p => { if (seen.has(p.name.toLowerCase())) return false; seen.add(p.name.toLowerCase()); return true; });
   } catch(e) { allPeople = []; }
   try {
-    const r = await fetch(`${SUPA}/rest/v1/assets?select=id,asset_number,make,model,year,status,team_id,teams(name,import_ref)&deleted_at=is.null&order=asset_number`, { headers: H });
+    const r = await fetch(`${SUPA}/rest/v1/assets?select=id,asset_number,make,model,year,status,is_cdl,team_id,teams(name,import_ref)&deleted_at=is.null&order=asset_number`, { headers: H });
     window._allAssets = await r.json();
   } catch(e) { window._allAssets = []; }
 }
@@ -586,11 +615,11 @@ async function loadPeople() {
 async function loadAsset(assetNum) {
   try {
     const encoded = encodeURIComponent(assetNum);
-    let r = await fetch(`${SUPA}/rest/v1/assets?asset_number=eq.${encoded}&select=id,asset_number,make,model,year,status,team_id,teams(name,import_ref)&deleted_at=is.null&limit=1`, { headers: H });
+    let r = await fetch(`${SUPA}/rest/v1/assets?asset_number=eq.${encoded}&select=id,asset_number,make,model,year,status,is_cdl,team_id,teams(name,import_ref)&deleted_at=is.null&limit=1`, { headers: H });
     let data = await r.json();
     if (!data?.[0]) {
       const fallback = assetNum.replace(/[-_]/g, ' ');
-      r = await fetch(`${SUPA}/rest/v1/assets?asset_number=ilike.*${encodeURIComponent(fallback)}*&select=id,asset_number,make,model,year,status,team_id,teams(name,import_ref)&deleted_at=is.null&limit=1`, { headers: H });
+      r = await fetch(`${SUPA}/rest/v1/assets?asset_number=ilike.*${encodeURIComponent(fallback)}*&select=id,asset_number,make,model,year,status,is_cdl,team_id,teams(name,import_ref)&deleted_at=is.null&limit=1`, { headers: H });
       data = await r.json();
     }
     if (!data?.[0]) { showError('setupError', `Asset "${assetNum}" not found.`); showAssetSearch(); return; }
@@ -799,6 +828,31 @@ async function startInspection() {
   if (!asset || !inspType || !selectedDriver) return;
   showLoading(true, t('loading'));
   try {
+    // CDL vehicles: check for prior defects before starting
+    if (asset.is_cdl) {
+      const priorResp = await fetch(`${SUPA}/rest/v1/rpc/get_prior_trip_defects`, {
+        method: 'POST', headers: H,
+        body: JSON.stringify({ p_asset_id: asset.id })
+      });
+      const priorData = await priorResp.json();
+      if (priorData?.has_prior_defects && Array.isArray(priorData.defects) && priorData.defects.length > 0) {
+        showLoading(false);
+        renderPriorDefects(priorData);
+        showScreen('screenPriorDefects');
+        return; // will continue to checklist from the ack button
+      }
+    }
+    await loadAndShowChecklist();
+  } catch(e) {
+    console.error(e);
+    showLoading(false);
+    showError('setupError', 'Failed to load inspection form.');
+  }
+}
+
+async function loadAndShowChecklist() {
+  showLoading(true, t('loading'));
+  try {
     const formId = await resolveFormId(asset, inspType, lang);
     if (!formId) { showLoading(false); showError('setupError', 'No form found for this asset.'); return; }
     const ri = await fetch(`${SUPA}/rest/v1/inspection_form_items?form_id=eq.${formId}&is_active=eq.true&order=order_index`, { headers: H });
@@ -812,7 +866,41 @@ async function startInspection() {
   } catch(e) { showLoading(false); showError('setupError', 'Failed to load form.'); }
 }
 
-// ── Checklist ──────────────────────────────────────────────────────
+// ── Prior defects (CDL) ────────────────────────────────────────────
+function renderPriorDefects(data) {
+  const dateEl = document.getElementById('priorInspDate');
+  if (dateEl && data.inspection_date) {
+    const d = new Date(data.inspection_date);
+    dateEl.textContent = `From inspection: ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}`;
+  }
+  const listEl = document.getElementById('priorDefectList');
+  listEl.innerHTML = (data.defects || []).map(d => {
+    const cert = d.certified;
+    const certColor = cert ? 'var(--green)' : 'var(--red)';
+    const certLabel = cert
+      ? (d.certification === 'repaired' ? 'Repairs completed' : 'No repair necessary')
+      : 'Pending certification';
+    const certBy = cert && d.certified_by ? ` · by ${d.certified_by}` : '';
+    return `<div style="background:var(--paper);border:1px solid var(--border);border-left:3px solid ${certColor};padding:10px 14px;margin-bottom:6px">
+      <div style="font-size:13px;font-weight:600">${d.description || '—'}</div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:4px;flex-wrap:wrap">
+        <span style="font-family:var(--mono);font-size:9px;font-weight:700;text-transform:uppercase;padding:1px 6px;background:${d.severity === 'critical' ? 'var(--red)' : 'var(--surface)'};color:${d.severity === 'critical' ? '#fff' : 'var(--gray)'}">${d.severity}</span>
+        ${d.wo_number ? `<span style="font-family:var(--mono);font-size:10px;color:var(--gray)">WO: ${d.wo_number}</span>` : ''}
+        <span style="font-family:var(--mono);font-size:10px;color:${certColor};font-weight:600">${certLabel}${certBy}</span>
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('priorDefectsAck').checked = false;
+  document.getElementById('priorDefectsContinueBtn').disabled = true;
+}
+
+document.getElementById('priorDefectsAck').addEventListener('change', function() {
+  document.getElementById('priorDefectsContinueBtn').disabled = !this.checked;
+});
+
+document.getElementById('priorDefectsContinueBtn').addEventListener('click', () => {
+  loadAndShowChecklist();
+});
 function renderChecklist() {
   const container = document.getElementById('checklistCard');
   if (!container) return;
