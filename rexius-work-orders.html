@@ -419,6 +419,52 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
   </div>
 </div>
 
+<!-- CDL CERTIFICATION MODAL -->
+<div class="modal-overlay" id="cdlCertModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">DVIR Mechanic Certification</div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--gray);margin-top:2px;letter-spacing:.05em">§396.11 — CDL / Commercial Vehicle</div>
+      </div>
+      <button class="modal-close" data-close="cdlCertModal">×</button>
+    </div>
+    <div class="modal-body">
+      <div style="background:var(--amber-light);border-left:3px solid var(--amber);padding:10px 14px;font-size:13px;color:var(--amber);margin-bottom:16px">
+        This is a CDL vehicle. Federal regulations require mechanic certification before the vehicle returns to service.
+      </div>
+      <div id="cdlDefectList" style="margin-bottom:16px"></div>
+      <div class="form-row">
+        <label class="form-label">Certification</label>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
+          <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:10px;border:1px solid var(--border);background:var(--paper)">
+            <input type="radio" name="cdlCert" value="repaired" style="margin-top:2px">
+            <div>
+              <div style="font-weight:600;font-size:13px">Repairs Completed</div>
+              <div style="font-size:12px;color:var(--gray)">All reported defects have been repaired. Vehicle is safe to operate.</div>
+            </div>
+          </label>
+          <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:10px;border:1px solid var(--border);background:var(--paper)">
+            <input type="radio" name="cdlCert" value="repair_unnecessary" style="margin-top:2px">
+            <div>
+              <div style="font-weight:600;font-size:13px">No Repair Necessary</div>
+              <div style="font-size:12px;color:var(--gray)">Reported items do not affect safe operation. Vehicle may return to service.</div>
+            </div>
+          </label>
+        </div>
+      </div>
+      <div class="form-row" style="margin-top:12px">
+        <label class="form-label">Certified by</label>
+        <input class="form-input" id="cdlCertBy" placeholder="Mechanic name" style="margin-top:4px">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="m-btn" data-close="cdlCertModal">Cancel</button>
+      <button class="m-btn primary" id="cdlCertSubmitBtn">Submit Certification</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -728,8 +774,9 @@ function woCard(w) {
     ? `<span class="wo-tag tag-mech">${w.mechanic}</span>`
     : `<span class="wo-tag tag-unassigned">Unassigned</span>`;
   const cost = w.total_parts_cost ? `<span class="wo-tag tag-cost">$${parseFloat(w.total_parts_cost).toLocaleString()}</span>` : '';
+  const cdl = w.is_cdl ? `<span class="wo-tag" style="background:#1e3a5f;color:#fff;font-family:var(--mono);font-size:9px;font-weight:700">CDL</span>` : '';
   return `<div class="wo-card ${pri}" data-wo-id="${w.id}">
-    <div class="wo-asset">${w.asset_number || '—'}</div>
+    <div class="wo-asset">${w.asset_number || '—'} ${cdl}</div>
     <div class="wo-desc">${w.description || '—'}</div>
     <div class="wo-meta">
       <span class="wo-tag tag-team">${w.team || '—'}</span>
@@ -793,7 +840,8 @@ function openDetail(id) {
   const readOnly = viewMode === 'archive';
 
   document.getElementById('detailTitle').textContent = w.description || '—';
-  document.getElementById('detailAsset').textContent = [w.asset_number, w.year, w.make, w.model].filter(Boolean).join(' · ');
+  const cdlBadge = w.is_cdl ? ' <span style="font-family:var(--mono);font-size:9px;font-weight:700;background:#1e3a5f;color:#fff;padding:1px 6px;vertical-align:middle">CDL</span>' : '';
+  document.getElementById('detailAsset').innerHTML = [w.asset_number, w.year, w.make, w.model].filter(Boolean).join(' · ') + cdlBadge;
 
   const cost = w.total_parts_cost ? `$${parseFloat(w.total_parts_cost).toLocaleString()}` : '—';
 
@@ -892,6 +940,16 @@ function openDetail(id) {
         <div><div class="modal-label" style="color:var(--gray)">Result</div><div class="modal-value"><span class="st st-${w.inspection.status === 'failed' ? 'open' : 'completed'}">${esc(w.inspection.status) || '—'}</span></div></div>
         <div><div class="modal-label" style="color:var(--gray)">Form</div><div class="modal-value">${esc(w.inspection.form_name) || '—'}</div></div>
       </div>
+    </div>` : ''}
+
+    ${w.is_cdl ? `
+    <div class="modal-section" style="margin-top:14px;background:${w.mechanic_certification ? '#f8faf8' : '#fffdf0'};padding:12px;border-left:3px solid ${w.mechanic_certification ? 'var(--green)' : 'var(--amber)'}">
+      <div class="modal-label" style="margin-bottom:6px">§396.11 DVIR Certification</div>
+      ${w.mechanic_certification
+        ? `<div style="font-size:13px;font-weight:600;color:var(--green)">${w.mechanic_certification === 'repaired' ? 'Repairs Completed' : 'No Repair Necessary'}</div>
+           <div style="font-size:11px;color:var(--gray);margin-top:3px">Certified by ${esc(w.certified_by)} · ${fmtDateTime(w.certified_at)}</div>`
+        : `<div style="font-size:12px;color:var(--amber)">Pending certification — required before vehicle returns to service.</div>`
+      }
     </div>` : ''}
 
     ${w.previous_wo ? `
@@ -1051,12 +1109,49 @@ function openDetail(id) {
 async function advanceStatus() {
   if (!selectedWO) return;
   const nextStatus = selectedWO.status === 'open' ? 'in_progress' : 'completed';
+
+  // CDL vehicles going to completed require DVIR certification
+  if (nextStatus === 'completed' && selectedWO.is_cdl) {
+    // Load defects for this WO to show in the cert modal
+    const defects = await rpc('get_wo_defects', { p_wo_id: selectedWO.id }) || [];
+    const defectHtml = defects.length
+      ? `<div style="font-family:var(--mono);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--gray);margin-bottom:6px">Reported Defects</div>` +
+        defects.map(d => `<div style="font-size:13px;padding:6px 10px;border-left:3px solid var(--amber);background:#fff;margin-bottom:4px">${esc(d.description)}</div>`).join('')
+      : `<div style="font-size:12px;color:var(--gray)">No defects on record for this work order.</div>`;
+    document.getElementById('cdlDefectList').innerHTML = defectHtml;
+    document.getElementById('cdlCertBy').value = currentUser || '';
+    document.querySelectorAll('input[name="cdlCert"]').forEach(r => r.checked = false);
+    openModal('cdlCertModal');
+    return;
+  }
+
   await rpc('update_work_order_status', { p_wo_id: selectedWO.id, p_status: nextStatus, p_user: currentUser });
   closeModal('detailModal');
   showToast(`Work order marked ${nextStatus.replace('_', ' ')}`);
   rpc('log_access', { p_tool_name: 'work-orders', p_user_name: currentUser, p_action: 'status_change', p_metadata: { wo_id: selectedWO.id, status: nextStatus } });
   loadData();
 }
+
+document.getElementById('cdlCertSubmitBtn').addEventListener('click', async () => {
+  const cert = document.querySelector('input[name="cdlCert"]:checked')?.value;
+  const certBy = document.getElementById('cdlCertBy').value.trim();
+  if (!cert) { showToast('Select a certification type'); return; }
+  if (!certBy) { showToast('Enter mechanic name'); return; }
+  const result = await rpc('certify_work_order', {
+    p_wo_id: selectedWO.id,
+    p_certification: cert,
+    p_certified_by: certBy,
+  });
+  if (result?.success) {
+    closeModal('cdlCertModal');
+    closeModal('detailModal');
+    showToast('Work order certified and completed');
+    rpc('log_access', { p_tool_name: 'work-orders', p_user_name: currentUser, p_action: 'cdl_certify', p_metadata: { wo_id: selectedWO.id, cert } });
+    loadData();
+  } else {
+    showToast('Certification failed: ' + JSON.stringify(result));
+  }
+});
 
 async function assignMechanic() {
   if (!selectedWO) return;
