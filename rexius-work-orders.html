@@ -230,7 +230,7 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
 .empty-icon { font-size: 32px; opacity: .3; margin-bottom: 8px; }
 .empty p { font-size: 13px; font-family: var(--mono); }
 
-.toast { position: fixed; bottom: 20px; right: 20px; background: var(--ink); color: var(--paper); font-family: var(--mono); font-size: 12px; padding: 10px 16px; border-left: 3px solid var(--green); opacity: 0; transform: translateY(6px); transition: all .2s; z-index: 999; pointer-events: none; }
+.toast { position: fixed; bottom: 20px; right: 20px; background: var(--ink); color: var(--paper); font-family: var(--mono); font-size: 12px; padding: 10px 16px; border-left: 3px solid var(--green); opacity: 0; transform: translateY(6px); transition: all .2s; z-index: 9999; pointer-events: none; }
 .toast.show { opacity: 1; transform: none; }
 
 .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--green); border-radius: 50%; animation: spin .6s linear infinite; }
@@ -775,8 +775,9 @@ function woCard(w) {
     : `<span class="wo-tag tag-unassigned">Unassigned</span>`;
   const cost = w.total_parts_cost ? `<span class="wo-tag tag-cost">$${parseFloat(w.total_parts_cost).toLocaleString()}</span>` : '';
   const cdl = w.is_cdl ? `<span class="wo-tag" style="background:#1e3a5f;color:#fff;font-family:var(--mono);font-size:9px;font-weight:700">CDL</span>` : '';
+  const woNum = w.work_order_number ? `<span style="font-family:var(--mono);font-size:9px;color:var(--gray)">${w.work_order_number}</span>` : '';
   return `<div class="wo-card ${pri}" data-wo-id="${w.id}">
-    <div class="wo-asset">${w.asset_number || '—'} ${cdl}</div>
+    <div class="wo-asset" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">${w.asset_number || '—'} ${cdl} ${woNum}</div>
     <div class="wo-desc">${w.description || '—'}</div>
     <div class="wo-meta">
       <span class="wo-tag tag-team">${w.team || '—'}</span>
@@ -841,7 +842,8 @@ function openDetail(id) {
 
   document.getElementById('detailTitle').textContent = w.description || '—';
   const cdlBadge = w.is_cdl ? ' <span style="font-family:var(--mono);font-size:9px;font-weight:700;background:#1e3a5f;color:#fff;padding:1px 6px;vertical-align:middle">CDL</span>' : '';
-  document.getElementById('detailAsset').innerHTML = [w.asset_number, w.year, w.make, w.model].filter(Boolean).join(' · ') + cdlBadge;
+  const woNumBadge = w.work_order_number ? ` <span style="font-family:var(--mono);font-size:10px;color:var(--gray)">${w.work_order_number}</span>` : '';
+  document.getElementById('detailAsset').innerHTML = [w.asset_number, w.year, w.make, w.model].filter(Boolean).join(' · ') + cdlBadge + woNumBadge;
 
   const cost = w.total_parts_cost ? `$${parseFloat(w.total_parts_cost).toLocaleString()}` : '—';
 
@@ -1113,7 +1115,8 @@ async function advanceStatus() {
   // CDL vehicles going to completed require DVIR certification
   if (nextStatus === 'completed' && selectedWO.is_cdl) {
     // Load defects for this WO to show in the cert modal
-    const defects = await rpc('get_wo_defects', { p_wo_id: selectedWO.id }) || [];
+    const defectsRaw = await rpc('get_wo_defects', { p_wo_id: selectedWO.id });
+    const defects = Array.isArray(defectsRaw) ? defectsRaw : [];
     const defectHtml = defects.length
       ? `<div style="font-family:var(--mono);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--gray);margin-bottom:6px">Reported Defects</div>` +
         defects.map(d => `<div style="font-size:13px;padding:6px 10px;border-left:3px solid var(--amber);background:#fff;margin-bottom:4px">${esc(d.description)}</div>`).join('')
@@ -1121,7 +1124,7 @@ async function advanceStatus() {
     document.getElementById('cdlDefectList').innerHTML = defectHtml;
     document.getElementById('cdlCertBy').value = currentUser || '';
     document.querySelectorAll('input[name="cdlCert"]').forEach(r => r.checked = false);
-    openModal('cdlCertModal');
+    document.getElementById('cdlCertModal').classList.add('open');
     return;
   }
 
