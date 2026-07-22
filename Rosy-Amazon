@@ -8,6 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root{
     --bg:#14161A;
@@ -261,6 +262,14 @@
 <div class="view" id="view-scan">
   <div class="scan-wrap">
     <div class="panel" style="margin:0 0 12px;">
+      <h2>Input method</h2>
+      <div class="segmented" id="modeSeg">
+        <button data-mode="camera" class="active">Phone camera</button>
+        <button data-mode="gun">Scanner gun</button>
+      </div>
+    </div>
+
+    <div class="panel" id="cameraPanel" style="margin:0 0 12px;">
       <h2>Scan a box</h2>
       <div id="reader"></div>
       <div class="scan-controls">
@@ -268,6 +277,12 @@
         <button class="btn btn-danger" id="stopScanBtn" style="display:none;">Stop</button>
       </div>
       <div class="scan-hint" id="scanHint">Point the camera at the barcode on the box.</div>
+    </div>
+
+    <div class="panel" id="gunPanel" style="display:none; margin:0 0 12px;">
+      <h2>Scanner gun</h2>
+      <input class="field" id="gunInput" placeholder="Ready — scan a box…" autocomplete="off" inputmode="none">
+      <div class="scan-hint">Pair your scanner gun as a Bluetooth or USB keyboard device. Leave this field focused — each scan submits itself automatically.</div>
     </div>
 
     <div class="panel">
@@ -297,9 +312,13 @@
 
   pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 
-  const KEY_MANIFEST = "manifest:v1";
-  const KEY_STATUS = "status:v1";
-  const SHARED = true; // manifest + scan progress are shared across everyone using this tool
+  // ======================================================================
+  // SUPABASE CONFIG — paste from Project Settings → Data API (URL) and
+  // Project Settings → API Keys → anon/public key
+  // ======================================================================
+  const SUPABASE_URL = "https://ufipqwxmkhyojvrfijfw.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVmaXBxd3hta2h5b2p2cmZpamZ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ3NTE5NTIsImV4cCI6MjEwMDMyNzk1Mn0.2kJcSZBrrr0HegVkMzfOzAWINE1adtQC_LG53G5LpEg";
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   let manifest = { fileName: null, codes: [], uploadedAt: null };
   let status = {}; // code -> { done: bool, ts: iso string|null }
@@ -311,26 +330,52 @@
 
   const $ = (id) => document.getElementById(id);
 
-  // ---------- storage ----------
-  async function loadData(){
-    try{
-      const m = await window.storage.get(KEY_MANIFEST, SHARED);
-      if (m && m.value) manifest = JSON.parse(m.value);
-    }catch(e){ /* no existing manifest */ }
-    try{
-      const s = await window.storage.get(KEY_STATUS, SHARED);
-      if (s && s.value) status = JSON.parse(s.value);
-    }catch(e){ /* no existing status */ }
+  // ---------- storage (Supabase Postgres + Realtime, synced across devices) ----------
+  function applyBoxRows(rows){
+    const sorted = [...rows].sort((a, b) => a.idx - b.idx);
+    manifest.codes = sorted.map(r => r.code);
+    const newStatus = {};
+    sorted.forEach(r => { newStatus[r.code] = { done: !!r.done, ts: r.ts || null }; });
+    status = newStatus;
+  }
+
+  function applyMetaRow(row){
+    manifest.fileName = row ? row.file_name : null;
+    manifest.uploadedAt = row ? row.uploaded_at : null;
+  }
+
+  async function refetchBoxes(){
+    const { data, error } = await sb.from("boxes").select("*").order("idx", { ascending:true });
+    if (error){ console.error("Failed to load boxes", error); return; }
+    applyBoxRows(data || []);
     render();
   }
 
-  async function saveManifest(){
-    try{ await window.storage.set(KEY_MANIFEST, JSON.stringify(manifest), SHARED); }
-    catch(e){ console.error("Failed to save manifest", e); }
+  async function refetchMeta(){
+    const { data, error } = await sb.from("manifest_meta").select("*").eq("id", 1).maybeSingle();
+    if (error){ console.error("Failed to load manifest meta", error); return; }
+    applyMetaRow(data);
+    render();
   }
-  async function saveStatus(){
-    try{ await window.storage.set(KEY_STATUS, JSON.stringify(status), SHARED); }
-    catch(e){ console.error("Failed to save status", e); }
+
+  async function loadData(){
+    await refetchBoxes();
+    await refetchMeta();
+
+    sb.channel("boxes-changes")
+      .on("postgres_changes", { event:"*", schema:"public", table:"boxes" }, () => { refetchBoxes(); })
+      .subscribe();
+
+    sb.channel("meta-changes")
+      .on("postgres_changes", { event:"*", schema:"public", table:"manifest_meta" }, () => { refetchMeta(); })
+      .subscribe();
+  }
+
+  // Single-code update — used for every scan/toggle so two devices scanning
+  // at the same moment can't clobber each other's writes.
+  async function saveStatusFor(code, value){
+    const { error } = await sb.from("boxes").update({ done: value.done, ts: value.ts }).eq("code", code);
+    if (error) console.error("Failed to save status for " + code, error);
   }
 
   // ---------- PDF parsing ----------
@@ -408,13 +453,32 @@
         if (!ok){ wrap.style.display = "none"; return; }
       }
 
-      const newStatus = {};
-      codes.forEach(c => { newStatus[c] = status[c] || { done:false, ts:null }; });
-      status = newStatus;
-      manifest = { fileName: file.name, codes: codes, uploadedAt: new Date().toISOString() };
+      const rows = codes.map((code, idx) => {
+        const prev = status[code];
+        return { code, idx, done: !!(prev && prev.done), ts: prev ? prev.ts : null };
+      });
 
-      await saveManifest();
-      await saveStatus();
+      progressText.textContent = "Saving manifest…";
+      const { error: delErr } = await sb.from("boxes").delete().gte("idx", 0);
+      if (delErr){ console.error(delErr); progressText.textContent = "Couldn't save to Supabase."; return; }
+
+      const CHUNK = 500;
+      for (let i = 0; i < rows.length; i += CHUNK){
+        const chunk = rows.slice(i, i + CHUNK);
+        const { error: insErr } = await sb.from("boxes").insert(chunk);
+        if (insErr){ console.error(insErr); progressText.textContent = "Couldn't save to Supabase."; return; }
+      }
+
+      const uploadedAt = new Date().toISOString();
+      const { error: metaErr } = await sb.from("manifest_meta")
+        .upsert({ id:1, file_name:file.name, uploaded_at:uploadedAt });
+      if (metaErr) console.error(metaErr);
+
+      const newStatus = {};
+      rows.forEach(r => { newStatus[r.code] = { done:r.done, ts:r.ts }; });
+      status = newStatus;
+      manifest = { fileName: file.name, codes: codes, uploadedAt: uploadedAt };
+
       progressText.textContent = "Loaded " + codes.length + " unique labels.";
       render();
     }catch(err){
@@ -479,9 +543,10 @@
     if (!row) return;
     const code = row.dataset.code;
     const cur = status[code] || { done:false, ts:null };
-    status[code] = cur.done ? { done:false, ts:null } : { done:true, ts:new Date().toISOString() };
-    await saveStatus();
+    const next = cur.done ? { done:false, ts:null } : { done:true, ts:new Date().toISOString() };
+    status[code] = next;
     render();
+    await saveStatusFor(code, next);
   });
 
   $("searchInput").addEventListener("input", (e) => { searchTerm = e.target.value; renderList(); });
@@ -517,18 +582,21 @@
   $("resetStatusBtn").addEventListener("click", async () => {
     if (!manifest.codes.length) return;
     if (!confirm("Reset every code in this manifest back to pending?")) return;
+    const { error } = await sb.from("boxes").update({ done:false, ts:null }).gte("idx", 0);
+    if (error){ console.error(error); return; }
     manifest.codes.forEach(c => { status[c] = { done:false, ts:null }; });
-    await saveStatus();
     render();
   });
 
   $("clearManifestBtn").addEventListener("click", async () => {
     if (!manifest.codes.length) return;
     if (!confirm("Remove the manifest and all scan progress? This can't be undone.")) return;
+    const { error: e1 } = await sb.from("boxes").delete().gte("idx", 0);
+    const { error: e2 } = await sb.from("manifest_meta").delete().eq("id", 1);
+    if (e1) console.error(e1);
+    if (e2) console.error(e2);
     manifest = { fileName:null, codes:[], uploadedAt:null };
     status = {};
-    await saveManifest();
-    await saveStatus();
     render();
   });
 
@@ -541,6 +609,7 @@
       document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
       $("view-" + target).classList.add("active");
       if (target !== "scan" && scanning) stopScanning();
+      if (target === "scan" && scanMode === "gun") focusGunInput();
     });
   });
 
@@ -592,8 +661,8 @@
       return;
     }
     status[code] = { done:true, ts:new Date().toISOString() };
-    await saveStatus();
     render();
+    await saveStatusFor(code, status[code]);
     showTicket("ok", code, "Box checked off the queue.");
     beep(880, 0.14);
     if (navigator.vibrate) navigator.vibrate(60);
@@ -607,6 +676,46 @@
   });
   $("manualInput").addEventListener("keydown", (e) => {
     if (e.key === "Enter") $("manualBtn").click();
+  });
+
+  // ---------- scanner gun (keyboard-wedge HID) mode ----------
+  let scanMode = "camera";
+  let gunRefocusTimer = null;
+
+  function focusGunInput(){
+    if (scanMode === "gun" && $("view-scan").classList.contains("active")){
+      $("gunInput").focus({ preventScroll:true });
+    }
+  }
+
+  $("gunInput").addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === "Tab"){
+      e.preventDefault();
+      const val = $("gunInput").value;
+      $("gunInput").value = "";
+      lastScan = { code:null, time:0 }; // gun scans always process
+      processScannedCode(val);
+    }
+  });
+  $("gunInput").addEventListener("blur", () => {
+    if (gunRefocusTimer) clearTimeout(gunRefocusTimer);
+    gunRefocusTimer = setTimeout(focusGunInput, 300);
+  });
+
+  $("modeSeg").addEventListener("click", async (e) => {
+    const btn = e.target.closest("button");
+    if (!btn) return;
+    scanMode = btn.dataset.mode;
+    [...$("modeSeg").children].forEach(b => b.classList.toggle("active", b === btn));
+    if (scanMode === "gun"){
+      if (scanning) await stopScanning();
+      $("cameraPanel").style.display = "none";
+      $("gunPanel").style.display = "block";
+      focusGunInput();
+    } else {
+      $("cameraPanel").style.display = "block";
+      $("gunPanel").style.display = "none";
+    }
   });
 
   // ---------- camera scanning ----------
