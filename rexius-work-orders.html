@@ -469,6 +469,60 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
   </div>
 </div>
 
+<!-- CANCEL WO — DEFECT RESOLUTION MODAL -->
+<div class="modal-overlay" id="cancelWOModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">Cancel Work Order</div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--gray);margin-top:2px;letter-spacing:.05em">This work order has open driver-reported defects</div>
+      </div>
+      <button class="modal-close" data-close="cancelWOModal">×</button>
+    </div>
+    <div class="modal-body">
+      <div style="background:var(--amber-light);border-left:3px solid var(--amber);padding:10px 14px;font-size:13px;color:var(--amber);margin-bottom:14px">
+        These defects show on the driver's inspection screen until they are resolved. Tell the system what happened to them before cancelling.
+      </div>
+      <div id="cancelDefectList" style="margin-bottom:16px"></div>
+      <div class="form-row">
+        <label class="form-label">What happened to the defect(s)?</label>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
+          <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:10px;border:1px solid var(--border);background:var(--paper)">
+            <input type="radio" name="cancelRes" value="repaired_elsewhere" style="margin-top:2px">
+            <div>
+              <div style="font-weight:600;font-size:13px">Repaired under another work order</div>
+              <div style="font-size:12px;color:var(--gray)">The work was consolidated into a different WO on this vehicle. Pick it below — the defects move to it and clear when it's certified.</div>
+            </div>
+          </label>
+          <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:10px;border:1px solid var(--border);background:var(--paper)">
+            <input type="radio" name="cancelRes" value="no_repair_needed" style="margin-top:2px">
+            <div>
+              <div style="font-weight:600;font-size:13px">No repair needed</div>
+              <div style="font-size:12px;color:var(--gray)">The reported items don't require a repair (e.g. resolved itself, informational note). Defects close and stop showing to drivers, recorded under your name.</div>
+            </div>
+          </label>
+          <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:10px;border:1px solid var(--border);background:var(--paper)">
+            <input type="radio" name="cancelRes" value="unrepaired" style="margin-top:2px">
+            <div>
+              <div style="font-weight:600;font-size:13px">Still broken / not addressed</div>
+              <div style="font-size:12px;color:var(--gray)">Nothing was fixed. The defects stay open and keep showing to drivers at inspection — that's intentional.</div>
+            </div>
+          </label>
+        </div>
+      </div>
+      <div class="form-row" id="cancelTargetWrap" style="display:none;margin-top:12px">
+        <label class="form-label">Which work order covered the repair?</label>
+        <div id="cancelTargetResults" class="assign-history" style="margin-top:4px;max-height:200px"></div>
+      </div>
+      <div id="cancelErr" style="font-size:12px;color:var(--red);margin-top:6px;display:none"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="m-btn" data-close="cancelWOModal">Keep Work Order</button>
+      <button class="m-btn danger" id="cancelWOSubmitBtn">Cancel Work Order</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -1623,13 +1677,121 @@ async function openInspection(inspId) {
   });
 }
 
+// ── Cancel WO with defect resolution ───────────────────────────────
+// A cancelled WO with unresolved defects keeps those defects on the driver's
+// inspection screen forever. This flow forces a choice: re-link to the WO that
+// actually did the repair, close as "no repair needed", or knowingly leave them showing.
+let cancelTargetWoId = null;
+
 async function cancelWO() {
-  if (!selectedWO || !confirm('Cancel this work order?')) return;
-  await rpc('update_work_order_status', { p_wo_id: selectedWO.id, p_status: 'cancelled', p_user: currentUser });
-  closeModal('detailModal');
-  showToast('Work order cancelled');
-  loadData();
+  if (!selectedWO) return;
+  const woId = selectedWO.id;
+  const defectsRaw = await rpc('get_wo_defects', { p_wo_id: woId });
+  const openDefects = (Array.isArray(defectsRaw) ? defectsRaw : [])
+    .filter(d => ['open', 'in_progress'].includes(d.status || 'open'));
+
+  // No open defects (manual WOs etc.) — plain confirm, nothing to resolve.
+  if (!openDefects.length) {
+    if (!confirm('Cancel this work order?')) return;
+    await rpc('cancel_work_order', { p_wo_id: woId, p_resolution: 'unrepaired', p_user: currentUser });
+    closeModal('detailModal');
+    showToast('Work order cancelled');
+    rpc('log_access', { p_tool_name: 'work-orders', p_user_name: currentUser, p_action: 'cancel_wo', p_metadata: { wo_id: woId, resolution: 'unrepaired', open_defects: 0 } });
+    loadData();
+    return;
+  }
+
+  cancelTargetWoId = null;
+  document.getElementById('cancelDefectList').innerHTML =
+    `<div style="font-family:var(--mono);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--gray);margin-bottom:6px">Open Defects on this Work Order</div>` +
+    openDefects.map(d => `<div style="font-size:13px;padding:6px 10px;border-left:3px solid var(--amber);background:#fff;margin-bottom:4px">${esc(d.description)}</div>`).join('');
+  document.querySelectorAll('input[name="cancelRes"]').forEach(r => r.checked = false);
+  document.getElementById('cancelTargetWrap').style.display = 'none';
+  document.getElementById('cancelTargetResults').innerHTML = '';
+  const cerr = document.getElementById('cancelErr');
+  cerr.style.display = 'none';
+  document.getElementById('cancelWOModal').classList.add('open');
 }
+
+// Toggle the target-WO picker when the resolution choice changes
+document.querySelectorAll('input[name="cancelRes"]').forEach(r => {
+  r.addEventListener('change', async () => {
+    const wrap = document.getElementById('cancelTargetWrap');
+    document.getElementById('cancelErr').style.display = 'none';
+    if (r.value === 'repaired_elsewhere' && r.checked) {
+      wrap.style.display = 'block';
+      await loadCancelTargets();
+    } else if (r.checked) {
+      wrap.style.display = 'none';
+      cancelTargetWoId = null;
+    }
+  });
+});
+
+// Candidate WOs on the same asset: completed/certified first, then in-progress/open.
+async function loadCancelTargets() {
+  const results = document.getElementById('cancelTargetResults');
+  results.innerHTML = '<div class="assign-empty">Loading work orders on this asset…</div>';
+  try {
+    let candidates = archivedWOs.length ? archivedWOs : (await rpc('get_archived_work_orders', {})).work_orders || [];
+    candidates = candidates.concat(allWOs);
+    const seen = new Set();
+    const ST_ORDER = { completed: 0, in_progress: 1, open: 2 };
+    const matches = candidates
+      .filter(w => w.asset_number === selectedWO.asset_number && w.id !== selectedWO.id && w.status !== 'cancelled')
+      .filter(w => { if (seen.has(w.id)) return false; seen.add(w.id); return true; })
+      .sort((a, b) => (ST_ORDER[a.status] ?? 9) - (ST_ORDER[b.status] ?? 9)
+        || new Date(b.date_completed || b.date_opened || 0) - new Date(a.date_completed || a.date_opened || 0))
+      .slice(0, 10);
+    if (!matches.length) {
+      results.innerHTML = '<div class="assign-empty">No other work orders found on this asset. If the repair hasn\'t been written up yet, keep this WO or choose another option.</div>';
+      return;
+    }
+    results.innerHTML = matches.map(w => `
+      <div class="assign-row" data-cancel-target="${w.id}" style="cursor:pointer">
+        <span class="assign-mech">${esc(w.description) || '—'}</span>
+        ${w.mechanic_certification ? '<span class="wo-tag tag-mech" style="font-size:9px">CERTIFIED</span>' : `<span class="st st-${esc(w.status)}" style="font-size:9px">${esc((w.status || '').replace('_', ' '))}</span>`}
+        <span class="assign-at">${fmtDate(w.date_completed || w.date_opened)}</span>
+      </div>`).join('');
+    results.querySelectorAll('[data-cancel-target]').forEach(el => {
+      el.addEventListener('click', () => {
+        cancelTargetWoId = el.dataset.cancelTarget;
+        results.querySelectorAll('[data-cancel-target]').forEach(x => x.style.borderLeftColor = '');
+        el.style.borderLeftColor = 'var(--green)';
+        document.getElementById('cancelErr').style.display = 'none';
+      });
+    });
+  } catch(e) {
+    console.error(e);
+    results.innerHTML = '<div class="assign-empty">Failed to load work orders.</div>';
+  }
+}
+
+document.getElementById('cancelWOSubmitBtn').addEventListener('click', async () => {
+  if (!selectedWO) return;
+  const res = document.querySelector('input[name="cancelRes"]:checked')?.value;
+  const cerr = document.getElementById('cancelErr');
+  if (!res) { cerr.textContent = 'Choose what happened to the defects first.'; cerr.style.display = 'block'; return; }
+  if (res === 'repaired_elsewhere' && !cancelTargetWoId) { cerr.textContent = 'Pick the work order that covered the repair.'; cerr.style.display = 'block'; return; }
+  const woId = selectedWO.id;
+  const result = await rpc('cancel_work_order', {
+    p_wo_id: woId,
+    p_resolution: res,
+    p_user: currentUser,
+    p_target_wo_id: res === 'repaired_elsewhere' ? cancelTargetWoId : null,
+  });
+  if (result?.success) {
+    closeModal('cancelWOModal');
+    closeModal('detailModal');
+    showToast(res === 'unrepaired' ? 'Cancelled — defects stay visible to drivers' : 'Work order cancelled, defects resolved');
+    rpc('log_access', { p_tool_name: 'work-orders', p_user_name: currentUser, p_action: 'cancel_wo', p_metadata: { wo_id: woId, resolution: res, target_wo_id: cancelTargetWoId } });
+    cancelTargetWoId = null;
+    loadData();
+  } else {
+    cerr.textContent = 'Failed to cancel: ' + JSON.stringify(result);
+    cerr.style.display = 'block';
+  }
+});
 
 // ── New WO ─────────────────────────────────────────────────────────
 function openNewWO(prefill) {
