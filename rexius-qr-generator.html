@@ -111,7 +111,7 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); min-
 .btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
 /* MAIN LAYOUT */
-.main { display: flex; height: calc(100vh - 97px); overflow: hidden; }
+.main { display: flex; height: calc(100vh - 145px); overflow: hidden; }
 
 /* ASSET PANEL */
 .asset-panel {
@@ -237,12 +237,12 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); min-
 }
 .qr-dl-btn:hover { border-color: var(--green); color: var(--green); }
 
-/* PRINT SHEET */
+/* PRINT SHEET (letter) */
 .print-sheet { display: none; }
 
 @media print {
-  body > *:not(.print-sheet) { display: none !important; }
-  .print-sheet {
+  body:not(.print-labels) > *:not(.print-sheet) { display: none !important; }
+  body:not(.print-labels) .print-sheet {
     display: block !important;
     width: 8.5in;
     padding: 0.4in;
@@ -281,6 +281,33 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); min-
   }
 }
 
+/* DYMO LABEL SHEET */
+.label-sheet { display: none; }
+
+@media print {
+  body.print-labels > *:not(.label-sheet) { display: none !important; }
+  body.print-labels .label-sheet { display: block !important; }
+  .dymo-page {
+    overflow: hidden;
+    page-break-after: always;
+    break-after: page;
+    background: #fff;
+  }
+  .dymo-page:last-child { page-break-after: auto; break-after: auto; }
+  .dymo-page img { display: block; width: 100%; height: 100%; }
+  .dymo-label {
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    background: #fff;
+  }
+  .dymo-qr { flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+  .dymo-qr canvas, .dymo-qr img { display: block; }
+  .dymo-text { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .dymo-num { font-family: monospace; font-weight: bold; color: #000; line-height: 1.05; white-space: nowrap; }
+  .dymo-sub { font-family: monospace; color: #000; margin-top: 0.04in; }
+}
+
 /* URL CONFIG */
 .url-config {
   padding: 10px 24px;
@@ -303,6 +330,39 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); min-
   max-width: 480px;
 }
 .url-input:focus { outline: none; border-color: var(--green); }
+
+/* LABEL CONFIG */
+.label-config {
+  padding: 8px 24px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--surface);
+  flex-wrap: wrap;
+}
+.label-config select, .label-config input[type=number] {
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 5px 8px;
+  border-radius: 5px;
+  border: 1px solid var(--border-light);
+  background: var(--bg);
+  color: var(--text);
+  outline: none;
+}
+.label-config select:focus, .label-config input[type=number]:focus { border-color: var(--green); }
+.label-config input[type=number] { width: 70px; }
+.label-config label {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+.label-config input[type=checkbox] { accent-color: var(--green); }
 
 /* LOADING */
 .loading {
@@ -363,7 +423,7 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); min-
 <div class="header">
   <div class="header-left">
     <div class="logo">REXIUS</div>
-    <div class="header-title">QR Code Generator</div>
+    <div class="header-title">QR Code Generator <span style="color:var(--text-muted);font-size:10px">v3-bitmap</span></div>
     <div class="status-dot" id="statusDot" style="background:var(--amber)"></div>
   </div>
   <div class="header-right">
@@ -371,6 +431,7 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); min-
     <button class="btn btn-outline" onclick="selectAll()">Select All</button>
     <button class="btn btn-outline" onclick="clearSelection()">Clear</button>
     <button class="btn btn-amber" onclick="printSelected()" id="printBtn" disabled>Print Sheet</button>
+    <button class="btn btn-amber" onclick="printLabels()" id="labelBtn" disabled>Print Labels</button>
     <button class="btn btn-primary" onclick="downloadZip()" id="zipBtn" disabled>↓ Download ZIP</button>
   </div>
 </div>
@@ -380,6 +441,29 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); min-
   <span class="url-label">Base URL:</span>
   <input class="url-input" id="baseUrl" value="https://rexiusfleet.github.io/rexius-tools/rexius-inspection.html?asset=" oninput="regenerateVisible()">
   <span class="url-label" style="color:var(--text-muted);font-size:10px">QR encodes: {base_url}{asset_number}</span>
+</div>
+
+<!-- LABEL CONFIG (Dymo) -->
+<div class="label-config">
+  <span class="url-label">Label:</span>
+  <select id="labelPreset" onchange="applyLabelPreset()">
+    <option value="30336" selected>30336 · 1" × 2-1/8"</option>
+    <option value="30252">30252 · 1-1/8" × 3-1/2"</option>
+    <option value="30334">30334 · 1-1/4" × 2-1/4"</option>
+    <option value="durable125">Durable 1933084 · 1-1/4" × 2-1/4"</option>
+    <option value="custom">Custom…</option>
+  </select>
+  <label>W <input type="number" id="labelW" value="2.125" step="0.005" min="0.5" max="4" onchange="labelDimsEdited()"> in</label>
+  <label>H <input type="number" id="labelH" value="1" step="0.005" min="0.5" max="4" onchange="labelDimsEdited()"> in</label>
+  <label>Feed <select id="labelRotate">
+    <option value="0" selected>Landscape (wide edge first)</option>
+    <option value="cw">Portrait · rotate CW</option>
+    <option value="ccw">Portrait · rotate CCW</option>
+  </select></label>
+  <div class="divider"></div>
+  <label>Copies <input type="number" id="labelCopies" value="2" step="1" min="1" max="10"></label>
+  <label><input type="checkbox" id="labelShowSub" checked> "REXIUS FLEET" subtext</label>
+  <span class="url-label" style="color:var(--text-muted);font-size:10px">Print dialog: pick the LabelWriter, paper = your label size, margins None, scale 100%</span>
 </div>
 
 <!-- CONTROLS -->
@@ -427,6 +511,12 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); min-
 
 <!-- PRINT SHEET (hidden, shown on print) -->
 <div class="print-sheet" id="printSheet"></div>
+
+<!-- DYMO LABEL SHEET (hidden, shown on label print) -->
+<div class="label-sheet" id="labelSheet"></div>
+
+<!-- Dynamic @page rule for label printing (populated by printLabels) -->
+<style id="labelPageStyle"></style>
 
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
@@ -559,6 +649,7 @@ function clearSelection() {
 function updateButtons() {
   const n = selected.size;
   document.getElementById('printBtn').disabled = n === 0;
+  document.getElementById('labelBtn').disabled = n === 0;
   document.getElementById('zipBtn').disabled = n === 0;
   document.getElementById('countBadge').textContent = `${getFilteredAssets().length} assets · ${n} selected`;
 }
@@ -595,6 +686,7 @@ function renderQRs() {
     <span class="preview-title">${selected.size} QR code${selected.size!==1?'s':''} generated</span>
     <div style="display:flex;gap:8px">
       <button class="btn btn-outline" onclick="printSelected()">Print Sheet</button>
+      <button class="btn btn-outline" onclick="printLabels()">Print Labels</button>
       <button class="btn btn-primary" onclick="downloadZip()">↓ Download ZIP</button>
     </div>
   </div>
@@ -707,10 +799,14 @@ async function downloadZip() {
   toast(`Downloaded ${selectedAssets.length} QR codes`);
 }
 
-// Print sheet
+// Print sheet (letter paper, 4-up grid)
 function printSelected() {
   const selectedAssets = allAssets.filter(a => selected.has(a.id));
   if (!selectedAssets.length) return;
+
+  // Make sure no leftover label @page rule hijacks the sheet print
+  document.getElementById('labelPageStyle').textContent = '';
+  document.body.classList.remove('print-labels');
 
   const sheet = document.getElementById('printSheet');
   sheet.innerHTML = '<div class="print-grid" id="printGrid"></div>';
@@ -744,6 +840,173 @@ function printSelected() {
     }
   });
 }
+
+// ── Dymo label printing ───────────────────────────────────────────
+// One .dymo-label div = one physical label on the roll. @page is sized
+// to the label with margin 0 so we print past DYMO Connect's margins;
+// only the printer's ~1mm hardware dead zone remains.
+const LABEL_PRESETS = {
+  '30336':      { w: 2.125, h: 1,     rotate: '0' },
+  '30252':      { w: 3.5,   h: 1.125, rotate: '0' },
+  '30334':      { w: 2.25,  h: 1.25,  rotate: '0' },
+  'durable125': { w: 2.25,  h: 1.25,  rotate: '0' }   // driver paper is 2.25×1.25; system-dialog Portrait does the rotation
+};
+
+function applyLabelPreset() {
+  const key = document.getElementById('labelPreset').value;
+  const p = LABEL_PRESETS[key];
+  if (p) {
+    document.getElementById('labelW').value = p.w;
+    document.getElementById('labelH').value = p.h;
+    document.getElementById('labelRotate').value = p.rotate;
+  }
+}
+
+function labelDimsEdited() {
+  // Manual edit = custom size
+  document.getElementById('labelPreset').value = 'custom';
+}
+
+function getLabelDims() {
+  const w = parseFloat(document.getElementById('labelW').value) || 2.125;
+  const h = parseFloat(document.getElementById('labelH').value) || 1;
+  return { w, h };
+}
+
+// Fit the asset number to the space right of the QR.
+// Monospace bold char width ≈ 0.62em.
+function fitFontIn(text, availW, maxIn) {
+  const len = Math.max((text || '').length, 3);
+  return Math.min(maxIn, availW / (len * 0.62)).toFixed(3);
+}
+
+// Generate a QR canvas offscreen (qrcodejs renders async-ish; same 60–80ms
+// settle pattern as downloadZip).
+function genQrCanvas(text) {
+  return new Promise(resolve => {
+    const tmp = document.createElement('div');
+    tmp.style.cssText = 'position:absolute;left:-9999px;top:-9999px';
+    document.body.appendChild(tmp);
+    new QRCode(tmp, {
+      text, width: 300, height: 300,
+      colorDark: '#000000', colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.H
+    });
+    setTimeout(() => {
+      const cv = tmp.querySelector('canvas') || tmp.querySelector('img');
+      resolve({ cv, tmp });
+    }, 80);
+  });
+}
+
+// Draw one full label (white bg + QR + text) at 300dpi in DESIGN orientation.
+function makeLabelCanvas(a, w, h, showSub, qrCanvas) {
+  const DPI = 300;
+  const cw = Math.round(w * DPI), ch = Math.round(h * DPI);
+  const pad = Math.round(0.05 * DPI);
+  const c = document.createElement('canvas');
+  c.width = cw; c.height = ch;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, cw, ch);
+
+  const qrSize = ch - pad * 2;
+  ctx.imageSmoothingEnabled = false;   // keep QR modules crisp when scaling
+  ctx.drawImage(qrCanvas, pad, pad, qrSize, qrSize);
+
+  const tx = pad + qrSize + pad;
+  const availPx = cw - tx - pad;
+  const centerX = tx + availPx / 2;
+
+  ctx.fillStyle = '#000000';
+  ctx.textAlign = 'center';
+  let fontPx = Math.min(ch * 0.32, availPx / (Math.max((a.asset_number || '').length, 3) * 0.62));
+  ctx.font = `bold ${Math.round(fontPx)}px monospace`;
+  const measured = ctx.measureText(a.asset_number).width;
+  if (measured > availPx) {
+    fontPx *= availPx / measured;
+    ctx.font = `bold ${Math.round(fontPx)}px monospace`;
+  }
+
+  const subPx = showSub ? Math.round(Math.min(ch * 0.11, 36)) : 0;
+  const blockH = fontPx + (showSub ? subPx * 1.6 : 0);
+  const baseY = ch / 2 - blockH / 2 + fontPx * 0.85;
+  ctx.fillText(a.asset_number, centerX, baseY);
+  if (showSub) {
+    ctx.font = `${subPx}px monospace`;
+    ctx.fillText('REXIUS FLEET', centerX, baseY + subPx * 1.6);
+  }
+  return c;
+}
+
+// Rotate a label canvas into the physical page orientation.
+function rotateCanvas(src, dir) {
+  if (dir === '0') return src;
+  const c = document.createElement('canvas');
+  c.width = src.height; c.height = src.width;
+  const ctx = c.getContext('2d');
+  if (dir === 'cw') { ctx.translate(c.width, 0); ctx.rotate(Math.PI / 2); }
+  else              { ctx.translate(0, c.height); ctx.rotate(-Math.PI / 2); }
+  ctx.drawImage(src, 0, 0);
+  return c;
+}
+
+async function printLabels() {
+  const selectedAssets = allAssets.filter(a => selected.has(a.id));
+  if (!selectedAssets.length) return;
+
+  const { w, h } = getLabelDims();
+  const copies = Math.max(1, Math.min(10, parseInt(document.getElementById('labelCopies').value, 10) || 1));
+  const showSub = document.getElementById('labelShowSub').checked;
+  const rotate = document.getElementById('labelRotate').value; // '0' | 'cw' | 'ccw'
+
+  // W/H are always the label's DESIGN dims (as you read it). For portrait
+  // feed the physical page is swapped; rotation is baked into the bitmap
+  // so the print pipeline can't silently undo it.
+  const pageW = rotate === '0' ? w : h;
+  const pageH = rotate === '0' ? h : w;
+  console.log(`[labels v3] design ${w}×${h}in, feed=${rotate}, page sent to driver: ${pageW}×${pageH}in`);
+
+  document.getElementById('labelPageStyle').textContent =
+    `@media print {
+      @page { size: ${pageW}in ${pageH}in; margin: 0; }
+      body.print-labels .dymo-page { width: ${pageW}in; height: ${pageH}in; }
+    }`;
+
+  const sheet = document.getElementById('labelSheet');
+  sheet.innerHTML = '';
+  toast('Rendering labels...');
+
+  const imgs = [];
+  for (const a of selectedAssets) {
+    const { cv, tmp } = await genQrCanvas(getUrl(a.asset_number));
+    const labelC = makeLabelCanvas(a, w, h, showSub, cv);
+    document.body.removeChild(tmp);
+    const dataUrl = rotateCanvas(labelC, rotate).toDataURL('image/png');
+    for (let c = 0; c < copies; c++) {
+      const page = document.createElement('div');
+      page.className = 'dymo-page';
+      const img = document.createElement('img');
+      img.src = dataUrl;
+      page.appendChild(img);
+      sheet.appendChild(page);
+      imgs.push(img);
+    }
+  }
+
+  // Make sure every bitmap is decoded before the print snapshot is taken
+  await Promise.all(imgs.map(i => i.decode().catch(() => {})));
+
+  document.body.classList.add('print-labels');
+  toast(`${selectedAssets.length * copies} labels queued`);
+  setTimeout(() => window.print(), 150);
+}
+
+// Clean up label mode after any print so the two print paths never collide
+window.addEventListener('afterprint', () => {
+  document.body.classList.remove('print-labels');
+  document.getElementById('labelPageStyle').textContent = '';
+});
 
 function toast(msg) {
   const el = document.getElementById('toast');
