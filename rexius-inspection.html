@@ -167,6 +167,16 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
 
 .error-banner { background: var(--red-light); border-left: 3px solid var(--red); padding: 10px 13px; font-size: 13px; color: var(--red); margin-bottom: 10px; display: none; }
 .error-banner.show { display: block; }
+
+.yn-wrap { display: flex; gap: 5px; flex-shrink: 0; }
+.yn-btn { font-family: var(--display); font-size: 12px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; padding: 6px 16px; border: 1px solid var(--border); background: transparent; color: var(--gray); cursor: pointer; transition: all .12s; -webkit-tap-highlight-color: transparent; }
+.yn-btn.on { border-color: var(--blue); background: var(--blue-light); color: var(--blue); }
+
+.trailer-picker-wrap { position: relative; width: 100%; margin-top: 6px; }
+.trailer-picked { display: flex; align-items: center; gap: 8px; padding: 9px 13px; background: var(--blue-light); border: 1px solid var(--blue); margin-top: 6px; }
+.trailer-picked-num { font-family: var(--mono); font-size: 14px; font-weight: 700; color: var(--blue); flex: 1; }
+.trailer-clear { font-family: var(--mono); font-size: 11px; color: var(--gray); background: none; border: none; cursor: pointer; }
+.trailer-unmatched-note { font-family: var(--mono); font-size: 10px; color: var(--amber); margin-top: 5px; }
 </style>
 </head>
 <body>
@@ -324,6 +334,8 @@ const KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 const H = { apikey: KEY, Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' };
 const BUCKET = 'rexius-fleet-photos';
 
+const LANDSCAPE_TEAM_IDS = ['3cfcb238-86d2-4494-bc94-4417b99f848c','419c8a4e-d367-4375-b993-720826e27f60','aca6dbb0-8daa-41f0-811e-cd9c58f047ee','2e0081fe-8fa3-4936-958b-7b369eeb150d'];
+
 let lang = 'en';
 let asset = null;
 let teamRef = null;
@@ -340,7 +352,11 @@ const T = {
     typeCardLabel: 'Inspection Type', driverCardLabel: 'Driver / Operator',
     startBtn: 'Start Inspection', submitBtn: 'Submit Inspection',
     pass: 'Pass', fail: 'Fail',
+    yes: 'Yes', no: 'No',
     searchDriver: 'Search name...', searchAsset: 'Search asset number, make, model...',
+    searchTrailer: 'Search trailer number...',
+    trailerUnmatched: 'Not found in system — will be recorded as entered',
+    trailerChange: 'Change',
     assetLabel: 'Select Asset', newTag: 'NEW',
     defectLabel: 'Describe defect', addPhoto: '📷  Add Photo',
     sev: { minor: 'Minor', critical: 'Critical' },
@@ -383,7 +399,11 @@ const T = {
     typeCardLabel: 'Tipo de Inspección', driverCardLabel: 'Conductor / Operador',
     startBtn: 'Iniciar Inspección', submitBtn: 'Enviar Inspección',
     pass: 'Pasa', fail: 'Falla',
+    yes: 'Sí', no: 'No',
     searchDriver: 'Buscar nombre...', searchAsset: 'Buscar activo, marca, modelo...',
+    searchTrailer: 'Buscar número de tráiler...',
+    trailerUnmatched: 'No encontrado en el sistema — se registrará tal como se escribió',
+    trailerChange: 'Cambiar',
     assetLabel: 'Seleccionar Activo', newTag: 'NUEVO',
     defectLabel: 'Describir defecto', addPhoto: '📷  Agregar Foto',
     sev: { minor: 'Menor', critical: 'Crítico' },
@@ -544,7 +564,7 @@ document.getElementById('differentVehicleBtn').addEventListener('click', () => {
 });
 
 function handleSubmitClick() {
-  const failures = formItems.filter(i => responses[i.id]?.value === 'fail');
+  const failures = formItems.filter(i => isVisible(i) && responses[i.id]?.value === 'fail');
   if (failures.length > 0) {
         const safe = s => s == null ? '' : String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     const listEl = document.getElementById('reviewDefectList');
@@ -611,6 +631,13 @@ document.addEventListener('click', e => {
     return;
   }
 
+  // Yes/No toggle buttons
+  const ynBtn = e.target.closest('.yn-btn[data-item-id][data-value]');
+  if (ynBtn) {
+    setResp(ynBtn.dataset.itemId, ynBtn.dataset.value);
+    return;
+  }
+
   // Severity buttons
   const sevBtn = e.target.closest('.sev-btn[data-item-id][data-sev]');
   if (sevBtn) {
@@ -622,6 +649,20 @@ document.addEventListener('click', e => {
   const photoRemove = e.target.closest('.photo-remove[data-item-id][data-idx]');
   if (photoRemove) {
     removePhoto(photoRemove.dataset.itemId, parseInt(photoRemove.dataset.idx));
+    return;
+  }
+
+  // Trailer picker options
+  const trailerOpt = e.target.closest('.asset-opt[data-trailer-item-id][data-trailer-idx]');
+  if (trailerOpt) {
+    pickTrailer(trailerOpt.dataset.trailerItemId, parseInt(trailerOpt.dataset.trailerIdx));
+    return;
+  }
+
+  // Trailer clear ("Change" button on a picked trailer)
+  const trailerClear = e.target.closest('.trailer-clear[data-item-id]');
+  if (trailerClear) {
+    clearTrailerPick(trailerClear.dataset.itemId);
     return;
   }
 });
@@ -657,12 +698,21 @@ document.addEventListener('input', e => {
     onAssetSearch(el.value);
     return;
   }
+
+  // Trailer search input (dynamically injected, one per gate item)
+  if (el.classList.contains('trailer-search-input') && el.dataset.itemId) {
+    onTrailerSearch(el.dataset.itemId, el.value);
+    return;
+  }
 });
 
 // Focus delegation for asset search (dynamically injected)
 document.addEventListener('focusin', e => {
   if (e.target.id === 'assetSearchInput') {
     onAssetSearch(e.target.value);
+  }
+  if (e.target.classList.contains('trailer-search-input') && e.target.dataset.itemId) {
+    onTrailerSearch(e.target.dataset.itemId, e.target.value);
   }
 });
 
@@ -680,6 +730,8 @@ document.addEventListener('mousedown', e => {
     setTimeout(() => document.getElementById('driverDrop')?.classList.remove('open'), 150);
   if (!e.target.closest('.asset-drop') && !e.target.closest('#assetSearchInput'))
     setTimeout(() => document.getElementById('assetDrop')?.classList.remove('open'), 150);
+  if (!e.target.closest('.trailer-picker-wrap'))
+    document.querySelectorAll('.trailer-drop.open').forEach(d => d.classList.remove('open'));
 });
 
 // ── Language ───────────────────────────────────────────────────────
@@ -786,7 +838,7 @@ async function loadPeople() {
     allPeople = allPeople.filter(p => { if (seen.has(p.name.toLowerCase())) return false; seen.add(p.name.toLowerCase()); return true; });
   } catch(e) { allPeople = []; }
   try {
-    const r = await fetch(`${SUPA}/rest/v1/assets?select=id,asset_number,make,model,year,status,is_cdl,team_id,teams(name,import_ref)&deleted_at=is.null&order=asset_number`, { headers: H });
+    const r = await fetch(`${SUPA}/rest/v1/assets?select=id,asset_number,make,model,year,status,is_cdl,asset_subtype,team_id,teams(name,import_ref)&deleted_at=is.null&order=asset_number`, { headers: H });
     window._allAssets = await r.json();
   } catch(e) { window._allAssets = []; }
 }
@@ -794,11 +846,11 @@ async function loadPeople() {
 async function loadAsset(assetNum) {
   try {
     const encoded = encodeURIComponent(assetNum);
-    let r = await fetch(`${SUPA}/rest/v1/assets?asset_number=eq.${encoded}&select=id,asset_number,make,model,year,status,is_cdl,team_id,teams(name,import_ref)&deleted_at=is.null&limit=1`, { headers: H });
+    let r = await fetch(`${SUPA}/rest/v1/assets?asset_number=eq.${encoded}&select=id,asset_number,make,model,year,status,is_cdl,asset_subtype,team_id,teams(name,import_ref)&deleted_at=is.null&limit=1`, { headers: H });
     let data = await r.json();
     if (!data?.[0]) {
       const fallback = assetNum.replace(/[-_]/g, ' ');
-      r = await fetch(`${SUPA}/rest/v1/assets?asset_number=ilike.*${encodeURIComponent(fallback)}*&select=id,asset_number,make,model,year,status,is_cdl,team_id,teams(name,import_ref)&deleted_at=is.null&limit=1`, { headers: H });
+      r = await fetch(`${SUPA}/rest/v1/assets?asset_number=ilike.*${encodeURIComponent(fallback)}*&select=id,asset_number,make,model,year,status,is_cdl,asset_subtype,team_id,teams(name,import_ref)&deleted_at=is.null&limit=1`, { headers: H });
       data = await r.json();
     }
     if (!data?.[0]) { showError('setupError', `Asset "${assetNum}" not found.`); showAssetSearch(); return; }
@@ -1069,11 +1121,32 @@ async function loadAndShowChecklist() {
     formItems = await ri.json();
     responses = {};
     defectPhotos = {};
+    // Pre-trip -> post-trip trailer prefill: if the prior-data payload includes a
+    // trailer used earlier today, seed the gate + trailer response so post-trip
+    // opens with it already selected (driver can still change it).
+    if (inspType === 'vehicle_posttrip' && asset?.id) {
+      const prior = _priorCache[asset.id] || await fetchPriorData(asset.id);
+      if (prior?.last_trailer_asset_id) {
+        prefillTrailer(prior.last_trailer_asset_id, prior.last_trailer_number || null);
+      }
+    }
     showLoading(false);
     showScreen('screenChecklist');
     document.getElementById('checklistAssetLabel').textContent = asset.asset_number;
     renderChecklist();
   } catch(e) { showLoading(false); showError('setupError', 'Failed to load form.'); }
+}
+
+function prefillTrailer(trailerAssetId, trailerNumberText) {
+  const gateItem = formItems.find(i => isGateItem(i));
+  const numberItem = gateItem && formItems.find(i => i.parent_item_id === gateItem.id && isTrailerNumberItem(i));
+  if (!gateItem || !numberItem) return;
+  const trailer = (window._allAssets||[]).find(a => a.id === trailerAssetId);
+  responses[gateItem.id] = { value: 'Yes' };
+  responses[numberItem.id] = {
+    value: trailer ? trailer.asset_number : (trailerNumberText || ''),
+    trailerAssetId: trailer ? trailer.id : null,
+  };
 }
 
 // ── Prior defects (CDL) ────────────────────────────────────────────
@@ -1115,17 +1188,57 @@ document.querySelectorAll('input[name="priorAckChoice"]').forEach(r => {
 document.getElementById('priorDefectsContinueBtn').addEventListener('click', () => {
   loadAndShowChecklist();
 });
+
+// ── Conditional item visibility (parent_item_id) ────────────────────
+// An item with no parent is always visible. An item with a parent is visible
+// only when that parent's current response value is exactly 'Yes'. This is
+// generic — any future gated section works the same way, not just trailers.
+function isGateItem(item) {
+  return formItems.some(i => i.parent_item_id === item.id);
+}
+function isTrailerNumberItem(item) {
+  return item.item_type === 'text' && item.title === 'Trailer Number';
+}
+function isVisible(item) {
+  if (!item.parent_item_id) return true;
+  const parent = formItems.find(i => i.id === item.parent_item_id);
+  if (!parent) return true;
+  return responses[parent.id]?.value === 'Yes';
+}
+function clearDescendantResponses(gateItemId) {
+  formItems.filter(i => i.parent_item_id === gateItemId).forEach(child => {
+    delete responses[child.id];
+    if (defectPhotos[child.id]) {
+      defectPhotos[child.id].forEach(p => URL.revokeObjectURL(p.previewUrl));
+      delete defectPhotos[child.id];
+    }
+  });
+}
+
 function renderChecklist() {
   const container = document.getElementById('checklistCard');
   if (!container) return;
   let html = '';
   formItems.forEach(item => {
     if (item.item_type === 'signature') return;
+    if (!isVisible(item)) return;
     const resp = responses[item.id] || {};
     const label = (lang === 'es' && item.title_es) ? item.title_es : item.title;
     const hasFail = resp.value === 'fail';
+    const gate = isGateItem(item);
 
-    if (item.item_type === 'pass_fail') {
+    if (gate && item.item_type === 'select') {
+      // Yes/No toggle gate (e.g. "Towing a trailer?") — not a pass/fail defect item.
+      html += `<div class="check-item" id="ci-${item.id}">
+        <div class="check-row">
+          <div class="check-label">${label}</div>
+          <div class="yn-wrap">
+            <button class="yn-btn${resp.value === 'Yes' ? ' on' : ''}" data-item-id="${item.id}" data-value="Yes">${t('yes')}</button>
+            <button class="yn-btn${resp.value === 'No' || !resp.value ? ' on' : ''}" data-item-id="${item.id}" data-value="No">${t('no')}</button>
+          </div>
+        </div>
+      </div>`;
+    } else if (item.item_type === 'pass_fail') {
       html += `<div class="check-item" id="ci-${item.id}">
         <div class="check-row">
           <div class="check-label${hasFail ? ' failed' : ''}">${label}</div>
@@ -1160,6 +1273,8 @@ function renderChecklist() {
         html += `<div style="margin:18px 0 10px;padding:6px 0;border-top:2px solid var(--border);border-bottom:1px solid var(--border)">
           <span style="font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--gray)">${item.title.replace(/^—\s*|\s*—$/g,'').trim()}</span>
         </div>`;
+      } else if (isTrailerNumberItem(item)) {
+        html += renderTrailerPickerItem(item, label, resp);
       } else {
         html += `<div class="check-item" id="ci-${item.id}">
           <div class="check-row" style="flex-direction:column;align-items:flex-start">
@@ -1173,6 +1288,104 @@ function renderChecklist() {
   container.innerHTML = html;
   updateProgress();
   Object.keys(defectPhotos).forEach(itemId => renderPhotoPreviews(itemId));
+}
+
+// ── Trailer picker (reuses the asset-search scoring pattern) ────────
+function trailerCandidatePool() {
+  const truckTeamId = asset?.team_id || null;
+  return (window._allAssets||[]).filter(a =>
+    a.asset_subtype === 'trailer' && LANDSCAPE_TEAM_IDS.includes(a.team_id)
+  ).map(a => ({ ...a, _ownTeam: a.team_id === truckTeamId }));
+}
+
+function renderTrailerPickerItem(item, label, resp) {
+  if (resp.value) {
+    // Already picked (or free-typed) — show a compact confirmation row
+    const unmatched = !resp.trailerAssetId;
+    return `<div class="check-item" id="ci-${item.id}">
+      <div class="check-row" style="flex-direction:column;align-items:flex-start">
+        <div class="check-label">${label}</div>
+        <div class="trailer-picked">
+          <span class="trailer-picked-num">${esc(resp.value)}</span>
+          <button class="trailer-clear" data-item-id="${item.id}">${t('trailerChange')}</button>
+        </div>
+        ${unmatched ? `<div class="trailer-unmatched-note">${t('trailerUnmatched')}</div>` : ''}
+      </div>
+    </div>`;
+  }
+  return `<div class="check-item" id="ci-${item.id}">
+    <div class="check-row" style="flex-direction:column;align-items:flex-start">
+      <div class="check-label">${label}</div>
+      <div class="trailer-picker-wrap">
+        <input class="asset-search-input trailer-search-input" data-item-id="${item.id}" autocomplete="off" autocorrect="off" placeholder="${t('searchTrailer')}">
+        <div class="asset-drop trailer-drop" id="trailerDrop-${item.id}"></div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function onTrailerSearch(itemId, val) {
+  const drop = document.getElementById('trailerDrop-' + itemId);
+  if (!drop) return;
+  window._trailerCandidates = window._trailerCandidates || {};
+  const pool = trailerCandidatePool();
+  if (!val.trim()) {
+    // Empty query: still show the driver's own-department trailers first, unfiltered, so
+    // there's something to tap without typing — this is the "prioritized" list at rest.
+    const sorted = [...pool].sort((a, b) => (b._ownTeam - a._ownTeam) || (a.asset_number||'').localeCompare(b.asset_number||'', undefined, {numeric:true}));
+    window._trailerCandidates[itemId] = sorted.slice(0, 10);
+    renderTrailerDrop(itemId, drop, sorted.slice(0, 10));
+    return;
+  }
+  const q = normStr(val);
+  const scored = [];
+  pool.forEach(a => {
+    const an = normStr(a.asset_number);
+    const desc = normStr([a.make,a.model].filter(Boolean).join(' '));
+    let tier;
+    if (an === q) tier = 0;
+    else if (an.startsWith(q)) tier = 1;
+    else if (an.includes(q)) tier = 2;
+    else if (desc.includes(q)) tier = 3;
+    else return;
+    scored.push([tier, a]);
+  });
+  // Own-department trailers rank above other-department trailers within the same match tier.
+  scored.sort((x, y) => x[0] - y[0]
+    || (y[1]._ownTeam - x[1]._ownTeam)
+    || (x[1].asset_number||'').localeCompare(y[1].asset_number||'', undefined, { numeric: true }));
+  const results = scored.map(s => s[1]).slice(0, 10);
+  window._trailerCandidates[itemId] = results;
+  renderTrailerDrop(itemId, drop, results);
+}
+
+function renderTrailerDrop(itemId, drop, results) {
+  if (!results.length) {
+    drop.innerHTML = `<div class="asset-opt"><span style="color:var(--gray);font-size:13px">${lang === 'es' ? 'Sin resultados' : 'No trailers found'}</span></div>`;
+    drop.classList.add('open');
+    return;
+  }
+  drop.innerHTML = results.map((a, i) => {
+    const desc = [a.make,a.model].filter(Boolean).join(' ');
+    const badge = a._ownTeam
+      ? `<span style="font-family:var(--mono);font-size:9px;padding:2px 5px;background:var(--green-light);color:var(--green);font-weight:600">${a.teams?.name || ''}</span>`
+      : `<span style="font-family:var(--mono);font-size:9px;padding:2px 5px;background:var(--surface);color:var(--gray);font-weight:600">${a.teams?.name || ''}</span>`;
+    return `<div class="asset-opt" data-trailer-item-id="${itemId}" data-trailer-idx="${i}"><div><span class="asset-opt-num">${esc(a.asset_number)}</span><span class="asset-opt-desc">${esc(desc)}</span></div>${badge}</div>`;
+  }).join('');
+  drop.classList.add('open');
+}
+
+function pickTrailer(itemId, idx) {
+  const a = (window._trailerCandidates?.[itemId]||[])[idx];
+  if (!a) return;
+  responses[itemId] = { value: a.asset_number, trailerAssetId: a.id };
+  document.getElementById('trailerDrop-' + itemId)?.classList.remove('open');
+  renderChecklist();
+}
+
+function clearTrailerPick(itemId) {
+  delete responses[itemId];
+  renderChecklist();
 }
 
 function renderDefectPanel(item, resp) {
@@ -1203,6 +1416,12 @@ function setResp(id, value, skipRender) {
   if (!responses[id]) responses[id] = {};
   responses[id].value = value;
   if (value === 'fail' && !responses[id].severity) responses[id].severity = 'minor';
+  // If this item gates a conditional section and it just turned "off", clear
+  // whatever the driver had already entered under it so nothing stale submits.
+  const item = formItems.find(i => i.id === id);
+  if (item && isGateItem(item) && value !== 'Yes') {
+    clearDescendantResponses(id);
+  }
   updateProgress();
   if (!skipRender) renderChecklist();
 }
@@ -1211,8 +1430,8 @@ function setDefectNote(id, val) { if (!responses[id]) responses[id] = {}; respon
 function setSev(id, sev) { if (!responses[id]) responses[id] = {}; responses[id].severity = sev; renderChecklist(); }
 
 function updateProgress() {
-  const pfItems = formItems.filter(i => i.item_type === 'pass_fail');
-  const selItems = formItems.filter(i => i.item_type === 'select' && i.is_required);
+  const pfItems = formItems.filter(i => i.item_type === 'pass_fail' && isVisible(i));
+  const selItems = formItems.filter(i => i.item_type === 'select' && i.is_required && isVisible(i));
   const allRequired = [...pfItems, ...selItems];
   const answered = allRequired.filter(i => responses[i.id]?.value).length;
   const total = allRequired.length;
@@ -1299,26 +1518,45 @@ async function submitInspection() {
     if (!formId) throw new Error('No form found');
 
     const isSeparator = i => i.item_type === 'text' && i.title.startsWith('—') && i.title.endsWith('—');
-    const respRows = formItems.filter(i => i.item_type !== 'signature' && !isSeparator(i)).map(item => {
+    const respRows = formItems.filter(i => i.item_type !== 'signature' && !isSeparator(i) && isVisible(i)).map(item => {
       const resp = responses[item.id] || {};
-      return {
+      const row = {
         form_item_id: item.id,
         pass_fail_value: item.item_type === 'pass_fail' ? (resp.value || null) : null,
         number_value: item.item_type === 'number' ? (resp.value ? parseFloat(resp.value) : null) : null,
         text_value: (item.item_type === 'text' || item.item_type === 'select') ? (resp.value || null) : null,
         notes: resp.notes || null,
       };
+      // Trailer-number field: thread the matched asset id (if any) alongside the display
+      // text. matched_asset_id is a new, additive key — the RPC reads it if present and
+      // ignores it otherwise, so this stays backward compatible with older cached pages.
+      if (isTrailerNumberItem(item)) row.matched_asset_id = resp.trailerAssetId || null;
+      return row;
     });
 
-    const failures = formItems.filter(i => responses[i.id]?.value === 'fail');
+    const failures = formItems.filter(i => isVisible(i) && responses[i.id]?.value === 'fail');
     const contactPhone = document.getElementById('contactPhone')?.value.trim() || null;
+    // Resolve the picked trailer (if any) once, for tagging trailer-section defects.
+    const gateItem = formItems.find(i => isGateItem(i));
+    const numberItem = gateItem && formItems.find(i => i.parent_item_id === gateItem.id && isTrailerNumberItem(i));
+    const pickedTrailerId = numberItem ? (responses[numberItem.id]?.trailerAssetId || null) : null;
+    const pickedTrailerText = numberItem ? (responses[numberItem.id]?.value || null) : null;
+
     const defectRows = failures.map(item => {
+      const isTrailerItem = gateItem && item.parent_item_id === gateItem.id;
+      // Always send the clean "title: notes" description — the RPC matches this back to
+      // its form item by title prefix to resolve category/disposition. Do NOT prepend
+      // anything client-side; the RPC itself builds any trailer-prefixed display text
+      // AFTER that match, from trailer_number_text below.
+      const description = (lang === 'es' && item.title_es ? item.title_es : item.title) + (responses[item.id].notes ? ': ' + responses[item.id].notes : '');
       const photos = (defectPhotos[item.id] || []).filter(p => p.storagePath).map(p => p.storagePath);
       return {
-        description: (lang === 'es' && item.title_es ? item.title_es : item.title) + (responses[item.id].notes ? ': ' + responses[item.id].notes : ''),
+        description,
         severity: responses[item.id].severity || 'minor',
         photo_paths: photos,
         contact_phone: contactPhone,
+        trailer_asset_id: isTrailerItem ? pickedTrailerId : null,
+        trailer_number_text: isTrailerItem ? pickedTrailerText : null,
       };
     });
 
