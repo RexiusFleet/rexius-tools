@@ -177,6 +177,12 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
 .trailer-picked-num { font-family: var(--mono); font-size: 14px; font-weight: 700; color: var(--blue); flex: 1; }
 .trailer-clear { font-family: var(--mono); font-size: 11px; color: var(--gray); background: none; border: none; cursor: pointer; }
 .trailer-unmatched-note { font-family: var(--mono); font-size: 10px; color: var(--amber); margin-top: 5px; }
+.trailer-picked-lock { font-family: var(--mono); font-size: 10px; color: var(--gray); }
+.unit-row { display: flex; align-items: center; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.unit-row-label { font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--red); margin-right: 2px; }
+.prior-unit-head { font-family: var(--display); font-size: 15px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--ink); margin: 12px 0 6px; }
+.prior-unit-head:first-child { margin-top: 0; }
+.prior-unit-date { font-family: var(--mono); font-size: 10px; font-weight: 400; color: var(--gray); text-transform: none; letter-spacing: 0; margin-left: 6px; }
 </style>
 </head>
 <body>
@@ -205,6 +211,7 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
       <div class="card-header"><span class="card-label" id="typeCardLabel">Inspection Type</span></div>
       <div class="card-body"><div class="type-grid" id="typeGrid"></div></div>
     </div>
+    <div class="card" id="setupTrailerCard" style="display:none"></div>
     <div class="card">
       <div class="card-header"><span class="card-label" id="driverCardLabel">Driver / Operator</span></div>
       <div class="card-body">
@@ -231,7 +238,7 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
   </div>
   <div class="content">
     <div class="card" style="margin-bottom:14px;padding:16px;border-left:4px solid var(--amber)">
-      <div style="font-family:var(--mono);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--amber);margin-bottom:6px">§396.11 — CDL Vehicle</div>
+      <div style="font-family:var(--mono);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--amber);margin-bottom:6px">§396.11 / §396.13 — CDL</div>
       <div id="priorDefectsAlert" style="font-size:13px;color:var(--ink)">The previous inspection reported defects on this vehicle. Review the status below before proceeding.</div>
       <div style="font-size:11px;color:var(--gray);margin-top:4px" id="priorInspDate"></div>
     </div>
@@ -334,7 +341,17 @@ const KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 const H = { apikey: KEY, Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' };
 const BUCKET = 'rexius-fleet-photos';
 
+// Fallback pool only. The live pool comes from the Trailer Number item's
+// options.trailer_pool (team_ids / exclude_asset_ids / pairs / hoist) — see trailerPoolCfg().
 const LANDSCAPE_TEAM_IDS = ['3cfcb238-86d2-4494-bc94-4417b99f848c','419c8a4e-d367-4375-b993-720826e27f60','aca6dbb0-8daa-41f0-811e-cd9c58f047ee','2e0081fe-8fa3-4936-958b-7b369eeb150d'];
+
+// Hoisted trailer question (CDL forms): the gate + picker are answered on the setup
+// screen so prior defects for truck AND trailer(s) show once, before the checklist.
+// { formId, gateId, numberId } when the resolved form's Trailer Number item has
+// trailer_pool.hoist = true; null otherwise. Answers live in `responses` under the
+// real item ids, so submit/routing is identical to the in-form picker.
+let hoist = null;
+let _preloadSeq = 0;
 
 let lang = 'en';
 let asset = null;
@@ -357,6 +374,13 @@ const T = {
     searchTrailer: 'Search trailer number...',
     trailerUnmatched: 'Not found in system — will be recorded as entered',
     trailerChange: 'Change',
+    trailerCardLabel: 'Trailer',
+    trailerLocked: 'Set on the start screen',
+    trailerPairDesc: 'Front + rear, inspected as one unit',
+    whichTrailer: 'Which trailer?',
+    front: 'Front', rear: 'Rear',
+    selTrailer: 'trailer',
+    priorDefectsAlertMulti: 'The previous inspection reported defects on this truck or trailer. Review the status below before proceeding.',
     assetLabel: 'Select Asset', newTag: 'NEW',
     defectLabel: 'Describe defect', addPhoto: '📷  Add Photo',
     sev: { minor: 'Minor', critical: 'Critical' },
@@ -404,6 +428,13 @@ const T = {
     searchTrailer: 'Buscar número de tráiler...',
     trailerUnmatched: 'No encontrado en el sistema — se registrará tal como se escribió',
     trailerChange: 'Cambiar',
+    trailerCardLabel: 'Tráiler',
+    trailerLocked: 'Seleccionado en la pantalla de inicio',
+    trailerPairDesc: 'Delantero + trasero, inspeccionados como una unidad',
+    whichTrailer: '¿Cuál tráiler?',
+    front: 'Delantero', rear: 'Trasero',
+    selTrailer: 'tráiler',
+    priorDefectsAlertMulti: 'La inspección anterior reportó defectos en este camión o tráiler. Revise el estado a continuación antes de continuar.',
     assetLabel: 'Seleccionar Activo', newTag: 'NUEVO',
     defectLabel: 'Describir defecto', addPhoto: '📷  Agregar Foto',
     sev: { minor: 'Menor', critical: 'Crítico' },
@@ -552,6 +583,7 @@ document.getElementById('differentVehicleBtn').addEventListener('click', () => {
   asset = null; inspType = null; selectedDriver = null;
   responses = {}; defectPhotos = {}; formItems = [];
   _priorCache = {};
+  clearHoist();
   document.getElementById('driverInput').value = '';
   document.getElementById('driverBadge').style.display = 'none';
   const ct = document.getElementById('certText');
@@ -649,6 +681,16 @@ document.addEventListener('click', e => {
   const photoRemove = e.target.closest('.photo-remove[data-item-id][data-idx]');
   if (photoRemove) {
     removePhoto(photoRemove.dataset.itemId, parseInt(photoRemove.dataset.idx));
+    return;
+  }
+
+  // Front/Rear toggle on a failed trailer item (paired trailers only)
+  const unitBtn = e.target.closest('.yn-btn[data-unit-item-id][data-unit]');
+  if (unitBtn) {
+    const id = unitBtn.dataset.unitItemId;
+    if (!responses[id]) responses[id] = {};
+    responses[id].unit = unitBtn.dataset.unit;
+    renderChecklist();
     return;
   }
 
@@ -793,7 +835,7 @@ function refreshLabels() {
   const pdt = document.getElementById('priorDefectsTopCenter');
   if (pdt) pdt.textContent = t('priorDefectsTitle');
   const pda = document.getElementById('priorDefectsAlert');
-  if (pda) pda.textContent = t('priorDefectsAlert');
+  if (pda) pda.textContent = _priorMulti ? t('priorDefectsAlertMulti') : t('priorDefectsAlert');
   const pap = document.getElementById('priorAckPrompt');
   if (pap) pap.textContent = t('priorAckPrompt');
   const par = document.getElementById('priorAckRepairedLabel');
@@ -806,6 +848,7 @@ function refreshLabels() {
   if (pdc) pdc.textContent = t('priorDefectsContinue');
 
   renderTypeGrid();
+  if (typeof renderSetupTrailer === 'function') renderSetupTrailer();
   if (asset && _priorCache[asset.id]) renderVehicleStatus(_priorCache[asset.id]);
   if (formItems.length) renderChecklist();
 }
@@ -920,6 +963,8 @@ function pickAsset(idx) {
 
 function changeAsset() {
   asset = null; teamRef = null; inspType = null; selectedDriver = null;
+  responses = {}; formItems = [];
+  clearHoist();
   document.getElementById('driverInput').value = '';
   document.getElementById('driverBadge').style.display = 'none';
   const ct = document.getElementById('certText');
@@ -975,7 +1020,9 @@ async function getTypes() {
   const num = (asset?.asset_number||'').toLowerCase();
   if (ref.includes('equipment')) return ['equip_preshift','equip_postshift'];
   if (num.startsWith('ge-')) return ['equip_preshift','equip_postshift'];
-  if (num.includes('trailer')) return ['trailer_pretrip','trailer_posttrip'];
+  // asset_subtype is the reliable trailer signal (backfilled 9/17 + 9/23). The name check
+  // is kept for any legacy asset literally named "...trailer...".
+  if (asset?.asset_subtype === 'trailer' || num.includes('trailer')) return ['trailer_pretrip','trailer_posttrip'];
   if (asset?.id && await assetHasOverride(asset.id)) return ['vehicle_pretrip','vehicle_posttrip'];
   return ['vehicle_pretrip','vehicle_posttrip'];
 }
@@ -1005,7 +1052,7 @@ async function renderTypeGrid() {
   }).join('');
 }
 
-function selectType(type) { inspType = type; renderTypeGrid(); checkCanStart(); }
+function selectType(type) { inspType = type; renderTypeGrid(); checkCanStart(); preloadHoist(); }
 
 // ── Driver search ──────────────────────────────────────────────────
 function onDriverSearch(val) {
@@ -1050,15 +1097,25 @@ function clearDriver() {
   checkCanStart();
 }
 
+function hoistAnswered() {
+  if (!hoist) return true;
+  const g = responses[hoist.gateId]?.value;
+  if (g === 'No') return true;
+  return g === 'Yes' && !!responses[hoist.numberId]?.value;
+}
+
 function checkCanStart() {
-  const ok = asset && inspType && selectedDriver;
+  const trailerOk = hoistAnswered();
+  const ok = asset && inspType && selectedDriver && !_hoistLoading && trailerOk;
   const btn = document.getElementById('startBtn');
   if (!btn) return;
   btn.disabled = !ok;
   if (!ok) {
+    if (_hoistLoading) { btn.textContent = t('loading'); return; }
     const missing = [];
     if (!asset) missing.push(lang === 'es' ? 'vehículo' : 'vehicle');
     if (!inspType) missing.push(lang === 'es' ? 'tipo' : 'type');
+    if (!trailerOk) missing.push(t('selTrailer'));
     if (!selectedDriver) missing.push(lang === 'es' ? 'conductor' : 'driver');
     btn.textContent = missing.length ? (lang === 'es' ? 'Seleccione: ' : 'Select: ') + missing.join(' & ') : t('startBtn');
   } else {
@@ -1094,15 +1151,24 @@ async function startInspection() {
   if (!asset || !inspType || !selectedDriver) return;
   showLoading(true, t('loading'));
   try {
-    // CDL vehicles: check for prior defects before starting
-    if (asset.is_cdl) {
-      const priorData = await fetchPriorData(asset.id);
-      if (priorData?.has_prior_defects && Array.isArray(priorData.defects) && priorData.defects.length > 0) {
-        showLoading(false);
-        renderPriorDefects(priorData);
-        showScreen('screenPriorDefects');
-        return; // will continue to checklist from the ack button
-      }
+    // CDL units: check prior defects before starting (§396.13). Covers the truck and,
+    // when the trailer was picked on the setup screen, each CDL trailer (both halves of
+    // a pair). One screen, one acknowledgment.
+    const units = [];
+    if (asset.is_cdl) units.push(asset);
+    pickedTrailerUnitIds().forEach(id => {
+      const a = (window._allAssets || []).find(x => x.id === id);
+      if (a?.is_cdl) units.push(a);
+    });
+    const datas = await Promise.all(units.map(u => fetchPriorData(u.id).catch(() => null)));
+    const withDefects = units
+      .map((u, i) => ({ unit: u, data: datas[i] }))
+      .filter(x => x.data?.has_prior_defects && Array.isArray(x.data.defects) && x.data.defects.length > 0);
+    if (withDefects.length) {
+      showLoading(false);
+      renderPriorDefects(withDefects);
+      showScreen('screenPriorDefects');
+      return; // will continue to checklist from the ack button
     }
     await loadAndShowChecklist();
   } catch(e) {
@@ -1118,13 +1184,18 @@ async function loadAndShowChecklist() {
     const formId = await resolveFormId(asset, inspType, lang);
     if (!formId) { showLoading(false); showError('setupError', 'No form found for this asset.'); return; }
     const ri = await fetch(`${SUPA}/rest/v1/inspection_form_items?form_id=eq.${formId}&is_active=eq.true&order=order_index`, { headers: H });
+    const keep = {};
+    if (hoist) [hoist.gateId, hoist.numberId].forEach(id => { if (responses[id]) keep[id] = responses[id]; });
     formItems = await ri.json();
-    responses = {};
+    // Hoisted answers survive only if the same items are on the form we just loaded.
+    if (hoist && !formItems.some(i => i.id === hoist.gateId)) clearHoist();
+    responses = hoist ? keep : {};
     defectPhotos = {};
     // Pre-trip -> post-trip trailer prefill: if the prior-data payload includes a
     // trailer used earlier today, seed the gate + trailer response so post-trip
     // opens with it already selected (driver can still change it).
-    if (inspType === 'vehicle_posttrip' && asset?.id) {
+    // Hoisted forms were already prefilled on the setup screen.
+    if (!hoist && inspType === 'vehicle_posttrip' && asset?.id) {
       const prior = _priorCache[asset.id] || await fetchPriorData(asset.id);
       if (prior?.last_trailer_asset_id) {
         prefillTrailer(prior.last_trailer_asset_id, prior.last_trailer_number || null);
@@ -1143,40 +1214,172 @@ function prefillTrailer(trailerAssetId, trailerNumberText) {
   if (!gateItem || !numberItem) return;
   const trailer = (window._allAssets||[]).find(a => a.id === trailerAssetId);
   responses[gateItem.id] = { value: 'Yes' };
+  // Front half of a configured pair -> prefill the pair (doubles run as one unit).
+  const pair = (trailerPoolCfg(numberItem.id)?.pairs || []).find(p => p.front === trailerAssetId);
+  const rear = pair && (window._allAssets||[]).find(a => a.id === pair.rear);
+  if (trailer && rear) {
+    responses[numberItem.id] = {
+      value: pair.label || `${trailer.asset_number} + ${rear.asset_number}`,
+      trailerAssetId: trailer.id, rearAssetId: rear.id,
+    };
+    return;
+  }
   responses[numberItem.id] = {
     value: trailer ? trailer.asset_number : (trailerNumberText || ''),
     trailerAssetId: trailer ? trailer.id : null,
   };
 }
 
+// Trailer asset ids actually in play (front + rear of a pair), or [] if not towing.
+function pickedTrailerUnitIds() {
+  const gateItem = hoist
+    ? formItems.find(i => i.id === hoist.gateId)
+    : formItems.find(i => isGateItem(i));
+  if (!gateItem || responses[gateItem.id]?.value !== 'Yes') return [];
+  const numberItem = formItems.find(i => i.parent_item_id === gateItem.id && isTrailerNumberItem(i));
+  const r = numberItem ? responses[numberItem.id] : null;
+  return [r?.trailerAssetId, r?.rearAssetId].filter(Boolean);
+}
+
+// ── Hoisted trailer question (setup screen, CDL forms) ─────────────
+let _hoistLoading = false;
+const _statusTried = new Set();
+
+function clearHoist() {
+  hoist = null;
+  _preloadSeq++;
+  _hoistLoading = false;
+  const card = document.getElementById('setupTrailerCard');
+  if (card) { card.style.display = 'none'; card.innerHTML = ''; }
+}
+
+// Called when the inspection type changes. Resolves the form early; if its Trailer
+// Number item says hoist, the gate + picker render on the setup screen.
+async function preloadHoist() {
+  clearHoist();
+  responses = {}; formItems = [];
+  if (!asset || !inspType || !inspType.startsWith('vehicle_')) { checkCanStart(); return; }
+  const seq = _preloadSeq;
+  _hoistLoading = true;
+  checkCanStart();
+  try {
+    const formId = await resolveFormId(asset, inspType, lang);
+    if (seq !== _preloadSeq || !formId) return;
+    const ri = await fetch(`${SUPA}/rest/v1/inspection_form_items?form_id=eq.${formId}&is_active=eq.true&order=order_index`, { headers: H });
+    const items = await ri.json();
+    if (seq !== _preloadSeq || !Array.isArray(items)) return;
+    const num = items.find(i => i.parent_item_id && i.item_type === 'text' && i.title === 'Trailer Number'
+      && i.options && !Array.isArray(i.options) && i.options.trailer_pool?.hoist === true);
+    if (!num) return;
+    formItems = items;
+    hoist = { formId, gateId: num.parent_item_id, numberId: num.id };
+    if (inspType === 'vehicle_posttrip') {
+      const prior = await fetchPriorData(asset.id).catch(() => null);
+      if (seq !== _preloadSeq) return;
+      if (prior?.last_trailer_asset_id) prefillTrailer(prior.last_trailer_asset_id, prior.last_trailer_number || null);
+    }
+    renderSetupTrailer();
+  } catch (e) {
+    console.error('Trailer preload failed:', e);
+  } finally {
+    if (seq === _preloadSeq) { _hoistLoading = false; checkCanStart(); }
+  }
+}
+
+// Fixed / pending rows for a picked trailer, so the driver sees the trailer's status
+// the same way the truck's shows in the hero area.
+function unitStatusRows(data) {
+  const pending = Array.isArray(data?.defects) ? data.defects : [];
+  const fixed = Array.isArray(data?.resolved_defects) ? data.resolved_defects : [];
+  const row = (d, ok) => `<div style="display:flex;align-items:flex-start;gap:8px;padding:7px 14px;border-top:1px solid var(--surface)">
+      <span style="font-family:var(--mono);font-size:11px;font-weight:700;color:${ok ? 'var(--green)' : 'var(--red)'};flex-shrink:0;margin-top:1px">${ok ? '✓' : '●'}</span>
+      <span style="font-size:13px;flex:1;line-height:1.35">${esc(d.description || '—')}</span>
+      <span style="font-family:var(--mono);font-size:9px;font-weight:600;text-transform:uppercase;color:${ok ? 'var(--green)' : 'var(--red)'};white-space:nowrap;margin-top:2px">${ok ? t('vsFixed') : t('vsPending')}${d.wo_number ? ` · ${esc(d.wo_number)}` : ''}</span>
+    </div>`;
+  return pending.map(d => row(d, false)).join('') + fixed.map(d => row(d, true)).join('');
+}
+
+function renderSetupTrailer() {
+  const card = document.getElementById('setupTrailerCard');
+  if (!card) return;
+  if (!hoist) { card.style.display = 'none'; card.innerHTML = ''; return; }
+  const gate = formItems.find(i => i.id === hoist.gateId);
+  const num = formItems.find(i => i.id === hoist.numberId);
+  if (!gate || !num) { card.style.display = 'none'; return; }
+  const lbl = i => (lang === 'es' && i.title_es) ? i.title_es : i.title;
+  const v = responses[gate.id]?.value;
+  const r = responses[num.id] || {};
+  const ids = [r.trailerAssetId, r.rearAssetId].filter(Boolean);
+  const statusHtml = (v === 'Yes' ? ids : []).map(id => {
+    const d = _priorCache[id];
+    if (!d) return '';
+    const rows = unitStatusRows(d);
+    return rows ? `<div style="padding:6px 14px 0;font-family:var(--mono);font-size:11px;font-weight:600;color:var(--gray)">${esc(assetNumberById(id))}</div>${rows}` : '';
+  }).join('');
+  // Explicit answer required here — neither button starts "on".
+  card.innerHTML = `<div class="card-header"><span class="card-label">${t('trailerCardLabel')}</span></div>
+    <div class="check-row">
+      <div class="check-label">${esc(lbl(gate))}</div>
+      <div class="yn-wrap">
+        <button class="yn-btn${v === 'Yes' ? ' on' : ''}" data-item-id="${gate.id}" data-value="Yes">${t('yes')}</button>
+        <button class="yn-btn${v === 'No' ? ' on' : ''}" data-item-id="${gate.id}" data-value="No">${t('no')}</button>
+      </div>
+    </div>
+    ${v === 'Yes' ? renderTrailerPickerItem(num, lbl(num), r, false) : ''}
+    ${statusHtml}`;
+  card.style.display = '';
+  // Fetch status for newly picked trailers, then re-render once it lands.
+  const missing = (v === 'Yes' ? ids : []).filter(id => !_priorCache[id] && !_statusTried.has(id));
+  if (missing.length) {
+    missing.forEach(id => _statusTried.add(id)); // one attempt per trailer — no retry loop
+    Promise.all(missing.map(id => fetchPriorData(id).catch(() => null)))
+      .then(() => { if (hoist) renderSetupTrailer(); });
+  }
+}
+
 // ── Prior defects (CDL) ────────────────────────────────────────────
-function renderPriorDefects(data) {
+// Accepts [{unit, data}] (truck and/or trailers). A single legacy data object also works.
+let _lastPriorUnits = null;
+let _priorMulti = false;
+function renderPriorDefects(input) {
+  const list = Array.isArray(input) ? input : [{ unit: asset, data: input }];
+  _lastPriorUnits = list;
+  const fmt = iso => new Date(iso).toLocaleDateString(lang === 'es' ? 'es-MX' : 'en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+  const multi = list.length > 1 || (list[0] && list[0].unit && asset && list[0].unit.id !== asset.id);
   const dateEl = document.getElementById('priorInspDate');
-  if (dateEl && data.inspection_date) {
-    const d = new Date(data.inspection_date);
-    const dateStr = d.toLocaleDateString(lang === 'es' ? 'es-MX' : 'en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
-    dateEl.textContent = `${t('priorDefectsFrom')} ${dateStr}`;
+  if (dateEl) {
+    dateEl.textContent = (!multi && list[0]?.data?.inspection_date) ? `${t('priorDefectsFrom')} ${fmt(list[0].data.inspection_date)}` : '';
   }
   const listEl = document.getElementById('priorDefectList');
-  listEl.innerHTML = (data.defects || []).map(d => {
+  listEl.innerHTML = list.map(({ unit, data }) => {
+    const head = multi
+      ? `<div class="prior-unit-head">${esc(unit?.asset_number || '')}${data.inspection_date ? `<span class="prior-unit-date">${t('priorDefectsFrom')} ${fmt(data.inspection_date)}</span>` : ''}</div>`
+      : '';
+    return head + priorDefectCards(data);
+  }).join('');
+  document.querySelectorAll('input[name="priorAckChoice"]').forEach(r => { r.checked = false; });
+  document.getElementById('priorDefectsContinueBtn').disabled = true;
+  // Apply translations to the static text on this screen
+  _priorMulti = !!multi;
+  refreshLabels();
+}
+
+function priorDefectCards(data) {
+  return (data.defects || []).map(d => {
     const certLabel = d.certified
       ? (d.certification === 'repaired' ? t('repaired') : t('repairUnnecessary'))
       : t('pendingCert');
     const certColor = d.certified ? 'var(--green)' : 'var(--red)';
     const certBy = d.certified && d.certified_by ? ` · ${d.certified_by}` : '';
     return `<div style="background:var(--paper);border:1px solid var(--border);border-left:3px solid ${certColor};padding:10px 14px;margin-bottom:6px">
-      <div style="font-size:13px;font-weight:600">${d.description || '—'}</div>
+      <div style="font-size:13px;font-weight:600">${esc(d.description || '—')}</div>
       <div style="display:flex;align-items:center;gap:8px;margin-top:4px;flex-wrap:wrap">
         <span style="font-family:var(--mono);font-size:9px;font-weight:700;text-transform:uppercase;padding:1px 6px;background:${d.severity === 'critical' ? 'var(--red)' : 'var(--surface)'};color:${d.severity === 'critical' ? '#fff' : 'var(--gray)'}">${d.severity === 'critical' ? t('sev').critical : t('sev').minor}</span>
-        ${d.wo_number ? `<span style="font-family:var(--mono);font-size:10px;color:var(--gray)">WO: ${d.wo_number}</span>` : ''}
-        <span style="font-family:var(--mono);font-size:10px;color:${certColor};font-weight:600">${certLabel}${certBy}</span>
+        ${d.wo_number ? `<span style="font-family:var(--mono);font-size:10px;color:var(--gray)">WO: ${esc(d.wo_number)}</span>` : ''}
+        <span style="font-family:var(--mono);font-size:10px;color:${certColor};font-weight:600">${certLabel}${esc(certBy)}</span>
       </div>
     </div>`;
   }).join('');
-  document.querySelectorAll('input[name="priorAckChoice"]').forEach(r => { r.checked = false; });
-  document.getElementById('priorDefectsContinueBtn').disabled = true;
-  // Apply translations to the static text on this screen
-  refreshLabels();
 }
 
 document.querySelectorAll('input[name="priorAckChoice"]').forEach(r => {
@@ -1222,6 +1425,7 @@ function renderChecklist() {
   formItems.forEach(item => {
     if (item.item_type === 'signature') return;
     if (!isVisible(item)) return;
+    if (hoist && item.id === hoist.gateId) return; // answered on the setup screen
     const resp = responses[item.id] || {};
     const label = (lang === 'es' && item.title_es) ? item.title_es : item.title;
     const hasFail = resp.value === 'fail';
@@ -1274,7 +1478,7 @@ function renderChecklist() {
           <span style="font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--gray)">${item.title.replace(/^—\s*|\s*—$/g,'').trim()}</span>
         </div>`;
       } else if (isTrailerNumberItem(item)) {
-        html += renderTrailerPickerItem(item, label, resp);
+        html += renderTrailerPickerItem(item, label, resp, !!(hoist && item.id === hoist.numberId));
       } else {
         html += `<div class="check-item" id="ci-${item.id}">
           <div class="check-row" style="flex-direction:column;align-items:flex-start">
@@ -1291,23 +1495,56 @@ function renderChecklist() {
 }
 
 // ── Trailer picker (reuses the asset-search scoring pattern) ────────
-function trailerCandidatePool() {
-  const truckTeamId = asset?.team_id || null;
-  return (window._allAssets||[]).filter(a =>
-    a.asset_subtype === 'trailer' && LANDSCAPE_TEAM_IDS.includes(a.team_id)
-  ).map(a => ({ ...a, _ownTeam: a.team_id === truckTeamId }));
+// Pool config lives on the Trailer Number item: options.trailer_pool =
+// { team_ids: [...], exclude_asset_ids: [...], pairs: [{front, rear, label}], hoist: bool }.
+// No config (old rows) -> Landscape team list, same as before.
+function trailerPoolCfg(itemId) {
+  const item = formItems.find(i => i.id === itemId);
+  const cfg = item?.options && !Array.isArray(item.options) ? item.options.trailer_pool : null;
+  return cfg || null;
 }
 
-function renderTrailerPickerItem(item, label, resp) {
+function trailerCandidatePool(itemId) {
+  const cfg = trailerPoolCfg(itemId);
+  const teamIds = Array.isArray(cfg?.team_ids) ? cfg.team_ids : LANDSCAPE_TEAM_IDS;
+  const excl = new Set(Array.isArray(cfg?.exclude_asset_ids) ? cfg.exclude_asset_ids : []);
+  const truckTeamId = asset?.team_id || null;
+  const all = window._allAssets || [];
+  const pool = all.filter(a =>
+    a.asset_subtype === 'trailer' && teamIds.includes(a.team_id) && !excl.has(a.id)
+  ).map(a => ({ ...a, _ownTeam: a.team_id === truckTeamId }));
+  // Doubles kept as separate assets (e.g. 30A front / 30B rear) also appear as one pick.
+  // The pair entry carries the FRONT id as its id; the rear rides along as _rearId.
+  (Array.isArray(cfg?.pairs) ? cfg.pairs : []).forEach(p => {
+    const f = all.find(a => a.id === p.front), r = all.find(a => a.id === p.rear);
+    if (!f || !r) return;
+    pool.push({
+      id: f.id, _rearId: r.id, _pair: true,
+      asset_number: p.label || `${f.asset_number} + ${r.asset_number}`,
+      make: '', model: t('trailerPairDesc'),
+      team_id: f.team_id, teams: f.teams, _ownTeam: f.team_id === truckTeamId,
+    });
+  });
+  return pool;
+}
+
+function assetNumberById(id) {
+  return (window._allAssets || []).find(a => a.id === id)?.asset_number || '';
+}
+
+function renderTrailerPickerItem(item, label, resp, readOnly) {
   if (resp.value) {
-    // Already picked (or free-typed) — show a compact confirmation row
+    // Already picked (or free-typed) — show a compact confirmation row.
+    // readOnly = hoisted to the setup screen; changing it there re-runs the prior-defect check.
     const unmatched = !resp.trailerAssetId;
     return `<div class="check-item" id="ci-${item.id}">
       <div class="check-row" style="flex-direction:column;align-items:flex-start">
-        <div class="check-label">${label}</div>
+        <div class="check-label">${esc(label)}</div>
         <div class="trailer-picked">
           <span class="trailer-picked-num">${esc(resp.value)}</span>
-          <button class="trailer-clear" data-item-id="${item.id}">${t('trailerChange')}</button>
+          ${readOnly
+            ? `<span class="trailer-picked-lock">${t('trailerLocked')}</span>`
+            : `<button class="trailer-clear" data-item-id="${item.id}">${t('trailerChange')}</button>`}
         </div>
         ${unmatched ? `<div class="trailer-unmatched-note">${t('trailerUnmatched')}</div>` : ''}
       </div>
@@ -1328,7 +1565,7 @@ function onTrailerSearch(itemId, val) {
   const drop = document.getElementById('trailerDrop-' + itemId);
   if (!drop) return;
   window._trailerCandidates = window._trailerCandidates || {};
-  const pool = trailerCandidatePool();
+  const pool = trailerCandidatePool(itemId);
   if (!val.trim()) {
     // Empty query: still show the driver's own-department trailers first, unfiltered, so
     // there's something to tap without typing — this is the "prioritized" list at rest.
@@ -1378,14 +1615,16 @@ function renderTrailerDrop(itemId, drop, results) {
 function pickTrailer(itemId, idx) {
   const a = (window._trailerCandidates?.[itemId]||[])[idx];
   if (!a) return;
-  responses[itemId] = { value: a.asset_number, trailerAssetId: a.id };
+  responses[itemId] = { value: a.asset_number, trailerAssetId: a.id, rearAssetId: a._rearId || null };
   document.getElementById('trailerDrop-' + itemId)?.classList.remove('open');
   renderChecklist();
+  if (hoist && itemId === hoist.numberId) { renderSetupTrailer(); checkCanStart(); }
 }
 
 function clearTrailerPick(itemId) {
   delete responses[itemId];
   renderChecklist();
+  if (hoist && itemId === hoist.numberId) { renderSetupTrailer(); checkCanStart(); }
 }
 
 function renderDefectPanel(item, resp) {
@@ -1403,6 +1642,7 @@ function renderDefectPanel(item, resp) {
       <button class="sev-btn minor${sev === 'minor' ? ' sel' : ''}" data-item-id="${item.id}" data-sev="minor">${t('sev').minor}</button>
       <button class="sev-btn critical${sev === 'critical' ? ' sel' : ''}" data-item-id="${item.id}" data-sev="critical">${t('sev').critical}</button>
     </div>
+    ${renderUnitToggle(item, resp)}
     <label class="photo-upload-btn">
       ${t('addPhoto')}
       <input type="file" class="photo-file-input" data-item-id="${item.id}" accept="image/*" capture="environment" multiple>
@@ -1410,6 +1650,26 @@ function renderDefectPanel(item, resp) {
     <div class="photo-preview-wrap" id="photos-${item.id}">${thumbs}</div>
     <div class="photo-uploading" id="photoStatus-${item.id}"></div>
   </div>`;
+}
+
+// Pair picked (e.g. 30A + 30B): a failed trailer item asks which half, default front.
+// The answer only changes which asset the defect/WO lands on.
+function pairForTrailerItem(item) {
+  if (!item.parent_item_id) return null;
+  const numberItem = formItems.find(i => i.parent_item_id === item.parent_item_id && isTrailerNumberItem(i));
+  if (!numberItem || numberItem.id === item.id) return null;
+  const r = responses[numberItem.id];
+  return (r?.trailerAssetId && r?.rearAssetId) ? r : null;
+}
+function renderUnitToggle(item, resp) {
+  const pr = pairForTrailerItem(item);
+  if (!pr) return '';
+  const unit = resp.unit === 'rear' ? 'rear' : 'front';
+  return `<div class="unit-row">
+      <span class="unit-row-label">${t('whichTrailer')}</span>
+      <button class="yn-btn${unit === 'front' ? ' on' : ''}" data-unit-item-id="${item.id}" data-unit="front">${t('front')} · ${esc(assetNumberById(pr.trailerAssetId))}</button>
+      <button class="yn-btn${unit === 'rear' ? ' on' : ''}" data-unit-item-id="${item.id}" data-unit="rear">${t('rear')} · ${esc(assetNumberById(pr.rearAssetId))}</button>
+    </div>`;
 }
 
 function setResp(id, value, skipRender) {
@@ -1424,6 +1684,7 @@ function setResp(id, value, skipRender) {
   }
   updateProgress();
   if (!skipRender) renderChecklist();
+  if (hoist && id === hoist.gateId) { renderSetupTrailer(); checkCanStart(); }
 }
 
 function setDefectNote(id, val) { if (!responses[id]) responses[id] = {}; responses[id].notes = val; }
@@ -1541,6 +1802,7 @@ async function submitInspection() {
     const numberItem = gateItem && formItems.find(i => i.parent_item_id === gateItem.id && isTrailerNumberItem(i));
     const pickedTrailerId = numberItem ? (responses[numberItem.id]?.trailerAssetId || null) : null;
     const pickedTrailerText = numberItem ? (responses[numberItem.id]?.value || null) : null;
+    const pickedRearId = numberItem ? (responses[numberItem.id]?.rearAssetId || null) : null;
 
     const defectRows = failures.map(item => {
       const isTrailerItem = gateItem && item.parent_item_id === gateItem.id;
@@ -1555,7 +1817,9 @@ async function submitInspection() {
         severity: responses[item.id].severity || 'minor',
         photo_paths: photos,
         contact_phone: contactPhone,
-        trailer_asset_id: isTrailerItem ? pickedTrailerId : null,
+        trailer_asset_id: isTrailerItem
+          ? ((responses[item.id].unit === 'rear' && pickedRearId) ? pickedRearId : pickedTrailerId)
+          : null,
         trailer_number_text: isTrailerItem ? pickedTrailerText : null,
       };
     });
@@ -1575,6 +1839,16 @@ async function submitInspection() {
     });
     const result = await rpc.json();
     if (!result?.success) throw new Error('Submission failed: ' + JSON.stringify(result));
+
+    // Driver has now seen the "Fixed" notices — mark them acknowledged so they stop
+    // reappearing (9/16 fix, restored). Truck always; trailers only when their status was
+    // shown on the setup screen (hoisted). Unrepaired defects are untouched: only mechanic
+    // certification clears those. Fire-and-forget.
+    const ackIds = [asset.id, ...(hoist ? pickedTrailerUnitIds() : [])];
+    ackIds.forEach(id => fetch(`${SUPA}/rest/v1/rpc/acknowledge_repaired_defects`, {
+      method: 'POST', headers: H,
+      body: JSON.stringify({ p_asset_id: id, p_inspector_id: driverId })
+    }).catch(() => {}));
 
     showLoading(false);
     showScreen('screenSuccess');
@@ -1612,6 +1886,7 @@ function resetAll() {
   asset = null; teamRef = null; inspType = null; selectedDriver = null;
   formItems = []; responses = {}; defectPhotos = {};
   _priorCache = {};
+  clearHoist();
   document.getElementById('driverInput').value = '';
   document.getElementById('driverBadge').style.display = 'none';
   document.getElementById('certCheck').checked = false;
