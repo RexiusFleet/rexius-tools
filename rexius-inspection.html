@@ -1645,7 +1645,7 @@ function renderDefectPanel(item, resp) {
     ${renderUnitToggle(item, resp)}
     <label class="photo-upload-btn">
       ${t('addPhoto')}
-      <input type="file" class="photo-file-input" data-item-id="${item.id}" accept="image/*" capture="environment" multiple>
+      <input type="file" class="photo-file-input" data-item-id="${item.id}" accept="image/*" multiple>
     </label>
     <div class="photo-preview-wrap" id="photos-${item.id}">${thumbs}</div>
     <div class="photo-uploading" id="photoStatus-${item.id}"></div>
