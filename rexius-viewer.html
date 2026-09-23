@@ -211,16 +211,10 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
 
   <div class="tb-sep"></div>
 
-  <!-- Group -->
+  <!-- Group (populated from the teams table after load) -->
   <span class="tb-label">Group</span>
   <select class="tb-select" id="filterGroup" onchange="applyFilters()">
     <option value="">All groups</option>
-    <option value="B">B</option>
-    <option value="C">C</option>
-    <option value="G">G</option>
-    <option value="L">L</option>
-    <option value="M">M</option>
-    <option value="BLOWER">Blower</option>
   </select>
 
   <!-- Status -->
@@ -438,7 +432,7 @@ async function loadInspections() {
     const from = document.getElementById('dateFrom').value;
     const to   = document.getElementById('dateTo').value;
 
-    let url = `${SUPA}/rest/v1/inspections?select=id,status,date_inspected,duration_seconds,supervisor_name_raw,form_id,assets!inspections_asset_id_fkey(asset_number,make,model,year,asset_subtype),people!inspections_inspector_id_fkey(first_name,last_name),inspection_forms!inspections_form_id_fkey(name)&order=date_inspected.desc&limit=2000`;
+    let url = `${SUPA}/rest/v1/inspections?select=id,status,date_inspected,duration_seconds,supervisor_name_raw,form_id,assets!inspections_asset_id_fkey(asset_number,make,model,year,asset_subtype,team_id),people!inspections_inspector_id_fkey(first_name,last_name),inspection_forms!inspections_form_id_fkey(name)&order=date_inspected.desc&limit=2000`;
     if (from) url += `&date_inspected=gte.${from}T00:00:00`;
     if (to)   url += `&date_inspected=lte.${to}T23:59:59`;
 
@@ -446,18 +440,18 @@ async function loadInspections() {
     if (!res.ok) throw new Error(await res.text());
     const data = await res.json();
 
-    // Fetch fail counts for all inspections in range (one query)
-    const failsMap = await loadFailCounts(from, to);
+    // Fetch fail counts + the teams list in parallel
+    const [failsMap, teamsMap] = await Promise.all([loadFailCounts(from, to), loadTeams()]);
 
     // Shape rows
     allRows = data.map(i => {
       const assetNum = i.assets?.asset_number || '—';
-      // Extract group prefix: letters at start
-      let group = null;
-      const m = assetNum.match(/^([A-Za-z]+)/);
-      if (m) group = m[1].toUpperCase();
-      // Blower trucks have numeric-only asset numbers
-      if (!group && /^\d+$/.test(assetNum.trim())) group = 'BLOWER';
+      // Group = the asset's team name (assets.team_id → teams). Never derive the
+      // group from the asset-number prefix — legacy trailer tags don't match their
+      // real team, and flatbed tractors are numeric (the old prefix logic
+      // mislabeled every numeric asset "Blower").
+      let group = teamsMap[i.assets?.team_id] || null;
+      if (!group) { const m = assetNum.match(/^([A-Za-z]+)/); group = m ? m[1].toUpperCase() : null; }
 
       return {
         id: i.id,
@@ -502,6 +496,22 @@ async function loadFailCounts(from, to) {
   } catch { return {}; }
 }
 
+// Fetch the teams list once: id → name map for group labels, plus the sorted
+// name list that fills the Group dropdown (all departments, not just those
+// with inspections in the current date range).
+let teamNames = [];
+async function loadTeams() {
+  try {
+    const res = await fetch(`${SUPA}/rest/v1/teams?select=id,name&order=name.asc`, { headers: H });
+    if (!res.ok) return {};
+    const rows = await res.json();
+    teamNames = rows.map(t => t.name);
+    const map = {};
+    rows.forEach(t => { map[t.id] = t.name; });
+    return map;
+  } catch { return {}; }
+}
+
 // ── Populate dropdowns ────────────────────────────────────────────────
 function populateDropdowns() {
   const forms = [...new Set(allRows.map(r => r.form_name).filter(f => f && f !== '—'))].sort();
@@ -518,6 +528,14 @@ function populateDropdowns() {
   inspSel.innerHTML = '';
   inspSel.appendChild(firstOpt2);
   inspectors.forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = n; inspSel.appendChild(o); });
+
+  const groupSel = document.getElementById('filterGroup');
+  const prevGroup = groupSel.value;
+  const firstOptG = groupSel.options[0];
+  groupSel.innerHTML = '';
+  groupSel.appendChild(firstOptG);
+  teamNames.forEach(g => { const o = document.createElement('option'); o.value = g; o.textContent = g; groupSel.appendChild(o); });
+  if (prevGroup && teamNames.includes(prevGroup)) groupSel.value = prevGroup;
 }
 
 // ── Filter & sort ─────────────────────────────────────────────────────
