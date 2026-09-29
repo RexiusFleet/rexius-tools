@@ -1264,6 +1264,17 @@ function openDetail(id) {
   rpc('log_access', { p_tool_name: 'work-orders', p_user_name: currentUser, p_action: 'view_wo', p_metadata: { wo_id: id, asset: w.asset_number } });
 }
 
+// Refresh data and reopen this WO in place, keeping any unsubmitted typing
+// (half-written update or expense). File pickers can't be restored by browsers.
+const DRAFT_IDS = ['updText','updType','expAmount','expVendor','expPartNum','expNote','expLaborType','expLaborHours'];
+async function refreshDetail(woId) {
+  const drafts = {};
+  DRAFT_IDS.forEach(id => { const el = document.getElementById(id); if (el && el.value) drafts[id] = el.value; });
+  await loadData(true);
+  openDetail(woId);
+  Object.entries(drafts).forEach(([id, v]) => { const el = document.getElementById(id); if (el) el.value = v; });
+}
+
 async function advanceStatus() {
   if (!selectedWO) return;
   const nextStatus = selectedWO.status === 'open' ? 'in_progress' : 'completed';
@@ -1285,10 +1296,15 @@ async function advanceStatus() {
   }
 
   await rpc('update_work_order_status', { p_wo_id: selectedWO.id, p_status: nextStatus, p_user: currentUser });
-  closeModal('detailModal');
   showToast(`Work order marked ${nextStatus.replace('_', ' ')}`);
   rpc('log_access', { p_tool_name: 'work-orders', p_user_name: currentUser, p_action: 'status_change', p_metadata: { wo_id: selectedWO.id, status: nextStatus } });
-  loadData();
+  if (nextStatus === 'in_progress') {
+    // Mechanic is starting work — stay in the WO (button flips to "Mark Completed")
+    await refreshDetail(selectedWO.id);
+  } else {
+    closeModal('detailModal');
+    loadData();
+  }
 }
 
 document.getElementById('cdlCertSubmitBtn').addEventListener('click', async () => {
@@ -1324,8 +1340,7 @@ async function assignMechanic() {
     const name = mechId ? (allPeople.find(p => p.id === mechId)?.name || 'mechanic') : 'Unassigned';
     showToast(mechId ? `Assigned to ${name}` : 'Work order unassigned');
     rpc('log_access', { p_tool_name: 'work-orders', p_user_name: currentUser, p_action: 'assign_wo', p_metadata: { wo_id: selectedWO.id, mechanic_id: mechId || null } });
-    closeModal('detailModal');
-    loadData();
+    await refreshDetail(selectedWO.id);
   } else {
     showToast('Failed to assign: ' + JSON.stringify(result));
   }
@@ -1344,8 +1359,7 @@ async function assignShop() {
     showToast(shopId ? `Shop set to ${name}` : 'Shop cleared');
     rpc('log_access', { p_tool_name: 'work-orders', p_user_name: currentUser, p_action: 'assign_shop', p_metadata: { wo_id: selectedWO.id, shop_id: shopId || null } });
     const woId = selectedWO.id;
-    await loadData(true);
-    openDetail(woId);
+    await refreshDetail(woId);
   } else {
     showToast('Failed to set shop: ' + JSON.stringify(result));
   }
@@ -1386,8 +1400,7 @@ async function toggleVehicleStatus() {
     showToast(result.status === 'out_of_service' ? 'Vehicle taken out of service' : 'Vehicle returned to service');
     rpc('log_access', { p_tool_name: 'work-orders', p_user_name: currentUser, p_action: 'vehicle_status_toggle', p_metadata: { wo_id: woId, asset: selectedWO.asset_number, status: result.status } });
     // Refresh data, then reopen this WO so the new status + update are visible immediately
-    await loadData(true);
-    openDetail(woId);
+    await refreshDetail(woId);
   } else {
     showToast(result?.error || 'Status change failed');
   }
@@ -1440,8 +1453,7 @@ async function removePhoto(photoId) {
     showToast('Photo removed');
     rpc('log_access', { p_tool_name: 'work-orders', p_user_name: currentUser, p_action: 'remove_photo', p_metadata: { wo_id: selectedWO.id, photo_id: photoId } });
     const woId = selectedWO.id;
-    await loadData(true);
-    openDetail(woId);
+    await refreshDetail(woId);
   } else {
     showToast('Failed to remove photo: ' + JSON.stringify(result));
   }
@@ -1502,8 +1514,7 @@ async function linkPreviousWO(previousWoId) {
   if (result?.success) {
     showToast('Linked to previous work order');
     rpc('log_access', { p_tool_name: 'work-orders', p_user_name: currentUser, p_action: 'link_previous_wo', p_metadata: { wo_id: woId, previous_wo_id: previousWoId } });
-    await loadData(true);
-    openDetail(woId);
+    await refreshDetail(woId);
   } else {
     showToast('Failed to link: ' + JSON.stringify(result));
   }
@@ -1606,8 +1617,7 @@ async function voidExpense(expenseId) {
   if (result === true || result?.success) {
     showToast('Expense voided');
     rpc('log_access', { p_tool_name: 'work-orders', p_user_name: currentUser, p_action: 'void_expense', p_metadata: { wo_id: woId, expense_id: expenseId } });
-    await loadData(true);
-    openDetail(woId);
+    await refreshDetail(woId);
   } else {
     showToast('Failed to void expense');
   }
