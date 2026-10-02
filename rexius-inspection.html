@@ -1875,13 +1875,15 @@ async function submitInspection() {
         contact_phone: contactPhone,
         // unit = 'truck' -> no trailer id, so the RPC lands it on the truck and prefixes
         // "[Trailer: <number>]" from trailer_number_text (existing unmatched-trailer path).
-        // unit = 'unsure' -> sent to the trailer plus unit_hint; the RPC flags it
-        // unconfirmed (and decides final routing — older RPCs just ignore the key).
+        // unit = 'unsure' -> sent to the trailer; the RPC flags it unconfirmed.
         trailer_asset_id: (isTrailerItem && responses[item.id].unit !== 'truck')
           ? ((responses[item.id].unit === 'rear' && pickedRearId) ? pickedRearId : pickedTrailerId)
           : null,
         trailer_number_text: isTrailerItem ? pickedTrailerText : null,
-        unit_hint: (isTrailerItem && responses[item.id].unit === 'unsure') ? 'unsure' : null,
+        // Scope signals for the RPC's "[Towed by <truck>]" label. Data-driven: only forms
+        // with ask_unit items (Landscape, as of 10/2) send them; CDL forms send neither.
+        unit_choice: (isTrailerItem && askUnit(item)) ? (responses[item.id].unit || null) : null,
+        towed_by: !!(isTrailerItem && formItems.some(askUnit)),
       };
     });
 
