@@ -180,6 +180,8 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
 .trailer-picked-lock { font-family: var(--mono); font-size: 10px; color: var(--gray); }
 .unit-row { display: flex; align-items: center; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
 .unit-row-label { font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--red); margin-right: 2px; }
+.unit-row.missing { outline: 2px solid var(--red); outline-offset: 4px; }
+.unit-row-missing { width: 100%; font-family: var(--mono); font-size: 10px; font-weight: 600; color: var(--red); }
 .prior-unit-head { font-family: var(--display); font-size: 15px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--ink); margin: 12px 0 6px; }
 .prior-unit-head:first-child { margin-top: 0; }
 .prior-unit-date { font-family: var(--mono); font-size: 10px; font-weight: 400; color: var(--gray); text-transform: none; letter-spacing: 0; margin-left: 6px; }
@@ -378,6 +380,9 @@ const T = {
     trailerLocked: 'Set on the start screen',
     trailerPairDesc: 'Front + rear, inspected as one unit',
     whichTrailer: 'Which trailer?',
+    whereProblem: 'Where is the problem?',
+    unitTruck: 'Truck', unitTrailer: 'Trailer', unitUnsure: 'Not sure',
+    unitRequired: 'Pick where the problem is',
     front: 'Front', rear: 'Rear',
     selTrailer: 'trailer',
     priorDefectsAlertMulti: 'The previous inspection reported defects on this truck or trailer. Review the status below before proceeding.',
@@ -432,6 +437,9 @@ const T = {
     trailerLocked: 'Seleccionado en la pantalla de inicio',
     trailerPairDesc: 'Delantero + trasero, inspeccionados como una unidad',
     whichTrailer: '¿Cuál tráiler?',
+    whereProblem: '¿Dónde está el problema?',
+    unitTruck: 'Camión', unitTrailer: 'Tráiler', unitUnsure: 'No estoy seguro',
+    unitRequired: 'Indique dónde está el problema',
     front: 'Delantero', rear: 'Trasero',
     selTrailer: 'tráiler',
     priorDefectsAlertMulti: 'La inspección anterior reportó defectos en este camión o tráiler. Revise el estado a continuación antes de continuar.',
@@ -597,6 +605,14 @@ document.getElementById('differentVehicleBtn').addEventListener('click', () => {
 
 function handleSubmitClick() {
   const failures = formItems.filter(i => isVisible(i) && responses[i.id]?.value === 'fail');
+  // Failed items that ask which unit has the problem must be answered before review.
+  const unitMissing = failures.filter(i => askUnit(i) && i.parent_item_id && !responses[i.id]?.unit);
+  if (unitMissing.length) {
+    unitMissing.forEach(i => { responses[i.id].unitMissing = true; });
+    renderChecklist();
+    document.getElementById('dp-' + unitMissing[0].id)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
   if (failures.length > 0) {
         const safe = s => s == null ? '' : String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     const listEl = document.getElementById('reviewDefectList');
@@ -610,7 +626,7 @@ function handleSubmitClick() {
       const sevLabel = sev === 'critical' ? t('sev').critical : t('sev').minor;
       return `<div style="display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
         <span style="font-family:var(--mono);font-size:10px;font-weight:700;text-transform:uppercase;color:${sevColor};padding:2px 7px;background:${sevBg};white-space:nowrap;margin-top:1px">${sevLabel}</span>
-        <span style="font-size:13px;font-weight:500">${safe(itemTitle)}${safe(note)}</span>
+        <span style="font-size:13px;font-weight:500">${safe(itemTitle)}${safe(note)}${unitLabel(item) ? `<span style="display:block;font-family:var(--mono);font-size:10px;color:var(--gray);margin-top:2px">${safe(t('whereProblem'))} ${safe(unitLabel(item))}</span>` : ''}</span>
       </div>`;
     }).join('');
     document.getElementById('contactPhone').value = '';
@@ -690,6 +706,7 @@ document.addEventListener('click', e => {
     const id = unitBtn.dataset.unitItemId;
     if (!responses[id]) responses[id] = {};
     responses[id].unit = unitBtn.dataset.unit;
+    delete responses[id].unitMissing;
     renderChecklist();
     return;
   }
@@ -1661,8 +1678,34 @@ function pairForTrailerItem(item) {
   const r = responses[numberItem.id];
   return (r?.trailerAssetId && r?.rearAssetId) ? r : null;
 }
+// Items flagged options.ask_unit (data-driven, set per form item) ask the driver which
+// unit actually has the problem: the truck, the trailer (or front/rear of a pair), or
+// not sure. Unflagged items keep the original pair-only Front/Rear toggle.
+function askUnit(item) {
+  return !!(item.options && !Array.isArray(item.options) && item.options.ask_unit === true);
+}
+function trailerNumberResp(item) {
+  if (!item.parent_item_id) return null;
+  const numberItem = formItems.find(i => i.parent_item_id === item.parent_item_id && isTrailerNumberItem(i));
+  if (!numberItem || numberItem.id === item.id) return null;
+  return responses[numberItem.id] || null;
+}
 function renderUnitToggle(item, resp) {
   const pr = pairForTrailerItem(item);
+  if (askUnit(item) && item.parent_item_id) {
+    const tr = trailerNumberResp(item);
+    const btn = (u, label) => `<button class="yn-btn${resp.unit === u ? ' on' : ''}" data-unit-item-id="${item.id}" data-unit="${u}">${label}</button>`;
+    const trailerBtns = pr
+      ? btn('front', `${t('front')} · ${esc(assetNumberById(pr.trailerAssetId))}`) + btn('rear', `${t('rear')} · ${esc(assetNumberById(pr.rearAssetId))}`)
+      : btn('trailer', `${t('unitTrailer')}${tr?.value ? ' · ' + esc(tr.value) : ''}`);
+    return `<div class="unit-row${resp.unitMissing ? ' missing' : ''}">
+      <span class="unit-row-label">${t('whereProblem')}</span>
+      ${btn('truck', `${t('unitTruck')} · ${esc(asset?.asset_number || '')}`)}
+      ${trailerBtns}
+      ${btn('unsure', t('unitUnsure'))}
+      ${resp.unitMissing ? `<span class="unit-row-missing">${t('unitRequired')}</span>` : ''}
+    </div>`;
+  }
   if (!pr) return '';
   const unit = resp.unit === 'rear' ? 'rear' : 'front';
   return `<div class="unit-row">
@@ -1670,6 +1713,19 @@ function renderUnitToggle(item, resp) {
       <button class="yn-btn${unit === 'front' ? ' on' : ''}" data-unit-item-id="${item.id}" data-unit="front">${t('front')} · ${esc(assetNumberById(pr.trailerAssetId))}</button>
       <button class="yn-btn${unit === 'rear' ? ' on' : ''}" data-unit-item-id="${item.id}" data-unit="rear">${t('rear')} · ${esc(assetNumberById(pr.rearAssetId))}</button>
     </div>`;
+}
+// Display label for a failed item's chosen unit (review screen). '' when not asked.
+function unitLabel(item) {
+  if (!askUnit(item) || !item.parent_item_id) return '';
+  const u = responses[item.id]?.unit;
+  const pr = pairForTrailerItem(item);
+  const tr = trailerNumberResp(item);
+  if (u === 'truck') return `${t('unitTruck')} · ${asset?.asset_number || ''}`;
+  if (u === 'front' && pr) return `${t('front')} · ${assetNumberById(pr.trailerAssetId)}`;
+  if (u === 'rear' && pr) return `${t('rear')} · ${assetNumberById(pr.rearAssetId)}`;
+  if (u === 'trailer') return `${t('unitTrailer')}${tr?.value ? ' · ' + tr.value : ''}`;
+  if (u === 'unsure') return t('unitUnsure');
+  return '';
 }
 
 function setResp(id, value, skipRender) {
@@ -1817,10 +1873,15 @@ async function submitInspection() {
         severity: responses[item.id].severity || 'minor',
         photo_paths: photos,
         contact_phone: contactPhone,
-        trailer_asset_id: isTrailerItem
+        // unit = 'truck' -> no trailer id, so the RPC lands it on the truck and prefixes
+        // "[Trailer: <number>]" from trailer_number_text (existing unmatched-trailer path).
+        // unit = 'unsure' -> sent to the trailer plus unit_hint; the RPC flags it
+        // unconfirmed (and decides final routing — older RPCs just ignore the key).
+        trailer_asset_id: (isTrailerItem && responses[item.id].unit !== 'truck')
           ? ((responses[item.id].unit === 'rear' && pickedRearId) ? pickedRearId : pickedTrailerId)
           : null,
         trailer_number_text: isTrailerItem ? pickedTrailerText : null,
+        unit_hint: (isTrailerItem && responses[item.id].unit === 'unsure') ? 'unsure' : null,
       };
     });
 
