@@ -120,6 +120,22 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
 .resp-notes { font-size: 11px; color: #555; margin-top: 3px; font-style: italic; }
 .resp-val { font-family: var(--mono); font-size: 11px; color: var(--gray); }
 
+/* Mechanic notes (work_order_updates on WOs spawned from this inspection's defects) */
+.wo-ref { font-family: var(--mono); font-size: 10px; color: var(--blue); margin-top: 3px; }
+.mn-wo { border: 1px solid var(--border); background: var(--surface); margin-bottom: 10px; }
+.mn-wo-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 7px 10px; border-bottom: 1px solid var(--border); background: var(--paper); }
+.mn-wo-num { font-family: var(--mono); font-size: 12px; font-weight: 600; }
+.mn-wo-defect { font-size: 12px; color: var(--gray); flex: 1; min-width: 160px; }
+.mn-list { display: flex; flex-direction: column; }
+.mn-item { padding: 7px 10px; border-top: 1px solid var(--border); }
+.mn-item:first-child { border-top: none; }
+.mn-meta { font-family: var(--mono); font-size: 10px; color: var(--gray); margin-bottom: 2px; }
+.mn-meta b { color: var(--ink); font-weight: 600; }
+.mn-text { font-size: 13px; color: var(--ink); white-space: pre-wrap; word-break: break-word; }
+.mn-item.minor .mn-text { font-size: 11px; color: var(--gray); }
+.mn-item.close { border-left: 3px solid var(--green); background: var(--green-light); }
+.mn-empty { padding: 8px 10px; font-family: var(--mono); font-size: 11px; color: var(--gray); }
+
 .expand-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
 .expand-tab { font-family: var(--mono); font-size: 11px; font-weight: 600; letter-spacing: .04em; padding: 7px 14px; cursor: pointer; color: var(--gray); border-bottom: 2px solid transparent; transition: all .1s; }
 .expand-tab:hover { color: var(--ink); }
@@ -735,9 +751,28 @@ async function toggleExpand(id) {
     const respIds = responses.map(r => r.id);
     let defects = [];
     if (respIds.length) {
-      const dRes = await fetch(`${SUPA}/rest/v1/defects?reported_via_inspection_response_id=in.(${respIds.join(',')})&select=id,severity,description,status,category,reported_via_inspection_response_id`, { headers: H });
+      const dRes = await fetch(`${SUPA}/rest/v1/defects?reported_via_inspection_response_id=in.(${respIds.join(',')})&select=id,severity,description,status,category,reported_via_inspection_response_id,work_order_id,correction_notes,corrected_at`, { headers: H });
       defects = await dRes.json();
     }
+
+    // Mechanic notes: WOs spawned from these defects + their update feed.
+    // Failure here must not break the responses view — notes just show as unavailable.
+    const woIds = [...new Set(defects.map(d => d.work_order_id).filter(Boolean))];
+    let workOrders = [], woUpdates = [], notesError = false;
+    if (woIds.length) {
+      try {
+        const [woRes, upRes] = await Promise.all([
+          fetch(`${SUPA}/rest/v1/work_orders?id=in.(${woIds.join(',')})&select=id,work_order_number,status,date_opened,date_completed`, { headers: H }),
+          fetch(`${SUPA}/rest/v1/work_order_updates?work_order_id=in.(${woIds.join(',')})&select=id,work_order_id,update_type,update_text,created_by,created_at&order=created_at.asc`, { headers: H }),
+        ]);
+        if (!woRes.ok || !upRes.ok) throw new Error('notes fetch failed');
+        workOrders = await woRes.json();
+        woUpdates = await upRes.json();
+      } catch(e) { console.error(e); notesError = true; }
+    }
+    const woById = {};
+    workOrders.forEach(w => { w.updates = []; woById[w.id] = w; });
+    woUpdates.forEach(u => { if (woById[u.work_order_id]) woById[u.work_order_id].updates.push(u); });
 
     const defectsByResp = {};
     defects.forEach(d => {
@@ -745,7 +780,7 @@ async function toggleExpand(id) {
       defectsByResp[d.reported_via_inspection_response_id].push(d);
     });
 
-    renderExpanded(id, responses, defects, defectsByResp);
+    renderExpanded(id, responses, defects, defectsByResp, woById, notesError);
   } catch(e) {
     console.error(e);
     const el = document.getElementById(`expand-${id}`);
@@ -753,9 +788,31 @@ async function toggleExpand(id) {
   }
 }
 
-function renderExpanded(id, responses, defects, defectsByResp) {
+function renderExpanded(id, responses, defects, defectsByResp, woById = {}, notesError = false) {
   const el = document.getElementById(`expand-${id}`);
   if (!el) return;
+
+  // Group by WO (several defects can land on one WO), then defects with close-out
+  // text but no WO. Count = feed entries + correction notes, for the tab label.
+  const woGroups = [];
+  const seenWo = {};
+  defects.forEach(d => {
+    const wo = d.work_order_id && woById[d.work_order_id];
+    if (!wo) return;
+    if (!seenWo[wo.id]) { seenWo[wo.id] = { wo, defects: [] }; woGroups.push(seenWo[wo.id]); }
+    seenWo[wo.id].defects.push(d);
+  });
+  const orphanCorrections = defects.filter(d => !(d.work_order_id && woById[d.work_order_id]) && (d.correction_notes || '').trim());
+  const noteCount = woGroups.reduce((n, g) => n + g.wo.updates.length + g.defects.filter(d => (d.correction_notes || '').trim()).length, 0)
+                  + orphanCorrections.length;
+  const fmtTs = ts => ts ? new Date(ts).toLocaleString('en-US', { month:'short', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit', hour12:true }) : '';
+  // Date-only corrections are stored as midnight UTC — show them as that calendar date, not the prior evening in PT.
+  const fmtCorrected = ts => {
+    const dt = new Date(ts);
+    return (dt.getUTCHours() === 0 && dt.getUTCMinutes() === 0 && dt.getUTCSeconds() === 0)
+      ? dt.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric', timeZone:'UTC' })
+      : fmtTs(ts);
+  };
 
   const row = allRows.find(r => r.id === id);
   const failResponses = responses.filter(r => r.pass_fail_value === 'fail');
@@ -775,7 +832,12 @@ function renderExpanded(id, responses, defects, defectsByResp) {
               <div style="flex:1">
                 <div class="resp-title">${escHtml(r.inspection_form_items?.title || '—')}</div>
                 ${r.notes ? `<div class="resp-notes">${escHtml(r.notes)}</div>` : ''}
-                ${d ? d.map(def => `<div style="font-family:var(--mono);font-size:10px;color:var(--red);margin-top:3px">⚠ ${escHtml(def.severity?.toUpperCase())} · ${escHtml(def.description)}</div>`).join('') : ''}
+                ${d ? d.map(def => {
+                  const wo = def.work_order_id && woById[def.work_order_id];
+                  const n = wo ? wo.updates.filter(u => u.update_type === 'Note').length : 0;
+                  return `<div style="font-family:var(--mono);font-size:10px;color:var(--red);margin-top:3px">⚠ ${escHtml(def.severity?.toUpperCase())} · ${escHtml(def.description)}</div>`
+                    + (wo ? `<div class="wo-ref">🔧 WO ${escHtml(wo.work_order_number || '')} · ${escHtml((wo.status || '').replace('_',' '))}${n ? ` · ${n} mechanic note${n !== 1 ? 's' : ''}` : ''}</div>` : '');
+                }).join('') : ''}
               </div>
               <span class="resp-pf resp-fail">FAIL</span>
             </div>`;
@@ -810,6 +872,43 @@ function renderExpanded(id, responses, defects, defectsByResp) {
       ` : '';
 
       return failHtml + passHtml + otherHtml || '<div style="font-family:var(--mono);font-size:12px;color:var(--gray)">No pass/fail responses.</div>';
+    }
+
+    if (tab === 'notes') {
+      if (notesError) return '<div style="font-family:var(--mono);font-size:12px;color:var(--red)">Couldn\'t load mechanic notes.</div>';
+      if (!woGroups.length && !orphanCorrections.length) {
+        return `<div class="empty"><div class="empty-icon">🔧</div><p>${defects.length ? 'No mechanic notes on these defects yet.' : 'No defects from this inspection.'}</p></div>`;
+      }
+      const updateHtml = u => {
+        const minor = u.update_type !== 'Note';
+        return `<div class="mn-item ${minor ? 'minor' : ''}">
+          <div class="mn-meta"><b>${escHtml(u.created_by || '—')}</b> · ${escHtml(fmtTs(u.created_at))}${minor ? ` · ${escHtml(u.update_type || '')}` : ''}</div>
+          <div class="mn-text">${escHtml(u.update_text || '')}</div>
+        </div>`;
+      };
+      const correctionHtml = d => `<div class="mn-item close">
+          <div class="mn-meta"><b>Correction</b>${d.corrected_at ? ` · ${escHtml(fmtCorrected(d.corrected_at))}` : ''}</div>
+          <div class="mn-text">${escHtml(d.correction_notes)}</div>
+        </div>`;
+
+      const groupsHtml = woGroups.map(({ wo, defects: ds }) => {
+        const items = wo.updates.map(updateHtml).join('') + ds.filter(d => (d.correction_notes || '').trim()).map(correctionHtml).join('');
+        return `<div class="mn-wo">
+          <div class="mn-wo-head">
+            <span class="mn-wo-num">WO ${escHtml(wo.work_order_number || '—')}</span>
+            <span class="mono-tag ${wo.status === 'completed' ? 'tag-passed' : 'tag-in_progress'}">${escHtml((wo.status || '—').replace('_',' '))}</span>
+            <span class="mn-wo-defect">${ds.map(d => escHtml(d.description)).join(' · ')}</span>
+          </div>
+          <div class="mn-list">${items || '<div class="mn-empty">No notes yet.</div>'}</div>
+        </div>`;
+      }).join('');
+
+      const orphanHtml = orphanCorrections.map(d => `<div class="mn-wo">
+          <div class="mn-wo-head"><span class="mn-wo-num">No WO</span><span class="mn-wo-defect">${escHtml(d.description)}</span></div>
+          <div class="mn-list">${correctionHtml(d)}</div>
+        </div>`).join('');
+
+      return groupsHtml + orphanHtml;
     }
 
     if (tab === 'details') {
@@ -870,8 +969,9 @@ function renderExpanded(id, responses, defects, defectsByResp) {
 
   el.innerHTML = `
     <div class="expand-tabs">
-      <div class="expand-tab ${expandedTab === 'responses' ? 'active' : ''}" onclick="switchTab('${id}','responses')">Inspection Responses</div>
-      <div class="expand-tab ${expandedTab === 'details' ? 'active' : ''}" onclick="switchTab('${id}','details')">Details &amp; Defects</div>
+      <div class="expand-tab ${expandedTab === 'responses' ? 'active' : ''}" data-tab="responses" onclick="switchTab('${id}','responses')">Inspection Responses</div>
+      <div class="expand-tab ${expandedTab === 'notes' ? 'active' : ''}" data-tab="notes" onclick="switchTab('${id}','notes')">Mechanic Notes${noteCount ? ` (${noteCount})` : ''}</div>
+      <div class="expand-tab ${expandedTab === 'details' ? 'active' : ''}" data-tab="details" onclick="switchTab('${id}','details')">Details &amp; Defects</div>
     </div>
     <div id="expand-content-${id}">${renderTabContent(expandedTab)}</div>
   `;
@@ -888,7 +988,7 @@ function switchTab(id, tab) {
   const el = document.getElementById(`expand-${id}`);
   if (!el || !el._renderTabContent) return;
   // Update tab active state
-  el.querySelectorAll('.expand-tab').forEach(t => t.classList.toggle('active', t.textContent.toLowerCase().includes(tab)));
+  el.querySelectorAll('.expand-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
   document.getElementById(`expand-content-${id}`).innerHTML = el._renderTabContent(tab);
 }
 
