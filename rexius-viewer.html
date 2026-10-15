@@ -136,6 +136,28 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
 .mn-item.close { border-left: 3px solid var(--green); background: var(--green-light); }
 .mn-empty { padding: 8px 10px; font-family: var(--mono); font-size: 11px; color: var(--gray); }
 
+/* Comments — narrative, NOT part of the work order record (table: comments) */
+.cm-banner { font-family: var(--mono); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--amber); margin-bottom: 8px; }
+.cm-compose { border: 1px dashed var(--border); background: var(--paper); padding: 10px; margin-bottom: 12px; }
+.cm-compose textarea { width: 100%; min-height: 64px; resize: vertical; font-family: var(--body); font-size: 13px; padding: 8px 10px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); outline: none; }
+.cm-compose textarea:focus { border-color: var(--green); background: var(--paper); }
+.cm-compose-row { display: flex; align-items: center; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
+.cm-check { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink); cursor: pointer; user-select: none; }
+.cm-list { display: flex; flex-direction: column; gap: 8px; }
+.cm-item { border: 1px dashed var(--border); border-left: 3px solid var(--amber); background: var(--amber-light); padding: 8px 10px; }
+.cm-item.on-form { border-left-color: var(--blue); background: var(--blue-light); }
+.cm-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-family: var(--mono); font-size: 10px; color: var(--gray); margin-bottom: 4px; }
+.cm-meta b { color: var(--ink); font-weight: 600; }
+.cm-anchor { padding: 1px 6px; background: var(--paper); border: 1px solid var(--border); }
+.cm-body { font-size: 13px; color: var(--ink); white-space: pre-wrap; word-break: break-word; }
+.cm-actions { display: flex; align-items: center; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+.cm-btn { font-family: var(--mono); font-size: 10px; font-weight: 600; padding: 3px 8px; border: 1px solid var(--border); background: var(--paper); color: #444; cursor: pointer; }
+.cm-btn:hover { border-color: var(--green); color: var(--green); }
+.cm-btn:disabled { opacity: .4; cursor: wait; }
+.cm-btn.form-on { background: var(--blue); border-color: var(--blue); color: #fff; }
+.cm-btn.danger:hover { border-color: var(--red); color: var(--red); }
+.cm-vis-note { font-family: var(--mono); font-size: 10px; color: var(--gray); }
+
 .expand-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
 .expand-tab { font-family: var(--mono); font-size: 11px; font-weight: 600; letter-spacing: .04em; padding: 7px 14px; cursor: pointer; color: var(--gray); border-bottom: 2px solid transparent; transition: all .1s; }
 .expand-tab:hover { color: var(--ink); }
@@ -330,8 +352,10 @@ const H = { apikey: KEY, Authorization: `Bearer ${KEY}`, 'Content-Type': 'applic
 const sbAuth = supabase.createClient(SUPA, KEY, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false }
 });
+let currentAuthId = null;   // used only to show Edit/Delete on your own comments (server enforces)
 function setAuthToken(session) {
   H.Authorization = `Bearer ${session ? session.access_token : KEY}`;
+  currentAuthId = session?.user?.id || null;
 }
 sbAuth.auth.onAuthStateChange((_event, session) => { if (session) setAuthToken(session); });
 
@@ -780,7 +804,8 @@ async function toggleExpand(id) {
       defectsByResp[d.reported_via_inspection_response_id].push(d);
     });
 
-    renderExpanded(id, responses, defects, defectsByResp, woById, notesError);
+    const cm = await loadComments(id, defects, woIds);
+    renderExpanded(id, responses, defects, defectsByResp, woById, notesError, cm);
   } catch(e) {
     console.error(e);
     const el = document.getElementById(`expand-${id}`);
@@ -788,7 +813,87 @@ async function toggleExpand(id) {
   }
 }
 
-function renderExpanded(id, responses, defects, defectsByResp, woById = {}, notesError = false) {
+// ── Comments (narrative; separate from the official WO record) ────────
+// Shown for an inspection: comments on the inspection itself, on its defects,
+// and on WOs spawned from those defects. New comments are anchored to the inspection.
+async function loadComments(inspId, defects, woIds) {
+  try {
+    const ors = [`inspection_id.eq.${inspId}`];
+    const defIds = defects.map(d => d.id);
+    if (defIds.length) ors.push(`defect_id.in.(${defIds.join(',')})`);
+    if (woIds.length)  ors.push(`work_order_id.in.(${woIds.join(',')})`);
+    const res = await fetch(`${SUPA}/rest/v1/comments?deleted_at=is.null&or=(${ors.join(',')})&select=id,body,inspection_id,defect_id,work_order_id,show_on_inspection,visibility_changed_at,visibility_changed_by,author_auth_id,author_name,created_at,edited_at&order=created_at.desc`, { headers: H });
+    if (!res.ok) throw new Error(await res.text());
+    return { list: await res.json(), error: false };
+  } catch(e) { console.error(e); return { list: [], error: true }; }
+}
+
+async function commentRpc(fn, args) {
+  const res = await fetch(`${SUPA}/rest/v1/rpc/${fn}`, { method: 'POST', headers: H, body: JSON.stringify(args) });
+  if (!res.ok) {
+    let msg = 'Request failed';
+    try { msg = (await res.json()).message || msg; } catch {}
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+// Re-fetch comments and re-render the open row, keeping the Comments tab and any unsent draft.
+async function refreshComments(id) {
+  const el = document.getElementById(`expand-${id}`);
+  if (!el || !el._args) return;
+  const draft = el.querySelector('#cm-draft')?.value || '';
+  const draftVis = !!el.querySelector('#cm-draft-vis')?.checked;
+  const [, , defects, , woById] = el._args;
+  const cm = await loadComments(id, defects, Object.keys(woById));
+  expandedTab = 'comments';
+  renderExpanded(...el._args.slice(0, 6), cm);
+  const el2 = document.getElementById(`expand-${id}`);
+  const ta = el2?.querySelector('#cm-draft'); if (ta) ta.value = draft;
+  const cb = el2?.querySelector('#cm-draft-vis'); if (cb) cb.checked = draftVis;
+}
+
+async function onCommentAction(id, btn) {
+  const action = btn.dataset.cmAction;
+  const cid = btn.dataset.cid;
+  const el = document.getElementById(`expand-${id}`);
+  try {
+    if (action === 'post') {
+      const ta = el.querySelector('#cm-draft');
+      const body = (ta?.value || '').trim();
+      if (!body) { showToast('Write a comment first'); return; }
+      btn.disabled = true;
+      await commentRpc('add_comment', { p_target_type: 'inspection', p_target_id: id, p_body: body, p_show_on_inspection: !!el.querySelector('#cm-draft-vis')?.checked });
+      ta.value = '';
+      const cb = el.querySelector('#cm-draft-vis'); if (cb) cb.checked = false;
+      showToast('Comment added');
+    } else if (action === 'toggle') {
+      btn.disabled = true;
+      const on = btn.dataset.on !== 'true';
+      await commentRpc('set_comment_inspection_visibility', { p_comment_id: cid, p_visible: on });
+      showToast(on ? 'Now showing on the inspection form' : 'Hidden from the inspection form');
+    } else if (action === 'edit') {
+      const cur = el._comments.list.find(c => c.id === cid);
+      const next = prompt('Edit comment', cur ? cur.body : '');
+      if (next == null || !next.trim() || (cur && next.trim() === cur.body)) return;
+      btn.disabled = true;
+      await commentRpc('edit_comment', { p_comment_id: cid, p_body: next });
+      showToast('Comment updated');
+    } else if (action === 'delete') {
+      if (!confirm('Delete this comment? It will also be removed from the inspection form.')) return;
+      btn.disabled = true;
+      await commentRpc('delete_comment', { p_comment_id: cid });
+      showToast('Comment deleted');
+    } else { return; }
+    await refreshComments(id);
+  } catch(e) {
+    console.error(e);
+    btn.disabled = false;
+    showToast(e.message || 'Comment action failed');
+  }
+}
+
+function renderExpanded(id, responses, defects, defectsByResp, woById = {}, notesError = false, comments = { list: [], error: false }) {
   const el = document.getElementById(`expand-${id}`);
   if (!el) return;
 
@@ -911,6 +1016,47 @@ function renderExpanded(id, responses, defects, defectsByResp, woById = {}, note
       return groupsHtml + orphanHtml;
     }
 
+    if (tab === 'comments') {
+      const anchorLabel = c => {
+        if (c.inspection_id) return 'This inspection';
+        if (c.work_order_id) { const w = woById[c.work_order_id]; return `WO ${w ? w.work_order_number : ''}`.trim(); }
+        if (c.defect_id) { const d = defects.find(x => x.id === c.defect_id); return d ? `Defect: ${d.description}` : 'Defect'; }
+        return '';
+      };
+      const composer = `<div class="cm-compose">
+          <textarea id="cm-draft" maxlength="2000" placeholder="Add a comment — narrative only, not part of the work order record"></textarea>
+          <div class="cm-compose-row">
+            <label class="cm-check"><input type="checkbox" id="cm-draft-vis"> Show to drivers on the inspection form</label>
+            <span style="flex:1"></span>
+            <button class="tb-btn primary" data-cm-action="post">Post comment</button>
+          </div>
+        </div>`;
+      const listHtml = comments.error
+        ? '<div style="font-family:var(--mono);font-size:12px;color:var(--red)">Couldn\'t load comments.</div>'
+        : !comments.list.length
+          ? '<div class="mn-empty" style="padding:4px 0">No comments yet.</div>'
+          : `<div class="cm-list">${comments.list.map(c => {
+              const mine = currentAuthId && c.author_auth_id === currentAuthId;
+              const on = !!c.show_on_inspection;
+              return `<div class="cm-item ${on ? 'on-form' : ''}">
+                <div class="cm-meta">
+                  <b>${escHtml(c.author_name || '—')}</b>
+                  <span>${escHtml(fmtTs(c.created_at))}${c.edited_at ? ' · edited' : ''}</span>
+                  <span class="cm-anchor">${escHtml(anchorLabel(c))}</span>
+                </div>
+                <div class="cm-body">${escHtml(c.body)}</div>
+                <div class="cm-actions">
+                  <button class="cm-btn ${on ? 'form-on' : ''}" data-cm-action="toggle" data-cid="${escHtml(c.id)}" data-on="${on}">${on ? '👁 On inspection form' : '🚫 Not on inspection form'}</button>
+                  ${c.visibility_changed_by ? `<span class="cm-vis-note">${on ? 'shown' : 'hidden'} by ${escHtml(c.visibility_changed_by)}${c.visibility_changed_at ? ' · ' + escHtml(fmtTs(c.visibility_changed_at)) : ''}</span>` : ''}
+                  <span style="flex:1"></span>
+                  ${mine ? `<button class="cm-btn" data-cm-action="edit" data-cid="${escHtml(c.id)}">Edit</button>
+                  <button class="cm-btn danger" data-cm-action="delete" data-cid="${escHtml(c.id)}">Delete</button>` : ''}
+                </div>
+              </div>`;
+            }).join('')}</div>`;
+      return `<div class="cm-banner">Comments · narrative only · not part of the work order record</div>` + composer + listHtml;
+    }
+
     if (tab === 'details') {
       if (!row) return '';
       const dt = row.date_inspected ? new Date(row.date_inspected) : null;
@@ -971,6 +1117,7 @@ function renderExpanded(id, responses, defects, defectsByResp, woById = {}, note
     <div class="expand-tabs">
       <div class="expand-tab ${expandedTab === 'responses' ? 'active' : ''}" data-tab="responses" onclick="switchTab('${id}','responses')">Inspection Responses</div>
       <div class="expand-tab ${expandedTab === 'notes' ? 'active' : ''}" data-tab="notes" onclick="switchTab('${id}','notes')">Mechanic Notes${noteCount ? ` (${noteCount})` : ''}</div>
+      <div class="expand-tab ${expandedTab === 'comments' ? 'active' : ''}" data-tab="comments" onclick="switchTab('${id}','comments')">Comments${comments.list.length ? ` (${comments.list.length})` : ''}${comments.list.some(c => c.show_on_inspection) ? ' 👁' : ''}</div>
       <div class="expand-tab ${expandedTab === 'details' ? 'active' : ''}" data-tab="details" onclick="switchTab('${id}','details')">Details &amp; Defects</div>
     </div>
     <div id="expand-content-${id}">${renderTabContent(expandedTab)}</div>
@@ -981,6 +1128,16 @@ function renderExpanded(id, responses, defects, defectsByResp, woById = {}, note
   el._defects = defects;
   el._defectsByResp = defectsByResp;
   el._renderTabContent = renderTabContent;
+  el._comments = comments;
+  el._args = [id, responses, defects, defectsByResp, woById, notesError];
+  // One delegated listener per expand panel; comment text never goes into inline handlers.
+  if (!el._cmBound) {
+    el._cmBound = true;
+    el.addEventListener('click', ev => {
+      const btn = ev.target.closest('[data-cm-action]');
+      if (btn && el.contains(btn)) { ev.stopPropagation(); onCommentAction(id, btn); }
+    });
+  }
 }
 
 function switchTab(id, tab) {
