@@ -891,11 +891,16 @@ async function onCommentAction(id, btn) {
       const next = (ta?.value || '').trim();
       if (!next) { showToast('Comment can\'t be empty — use Delete instead'); return; }
       const cur = el._comments.list.find(c => c.id === cid);
-      if (cur && next === cur.body) { el._editingId = null; document.getElementById(`expand-content-${id}`).innerHTML = el._renderTabContent('comments'); return; }
+      const visBox = el.querySelector(`#cm-edit-vis-${CSS.escape(cid)}`);
+      const wantVis = visBox ? visBox.checked : !!cur?.show_on_inspection;
+      const textChanged = !cur || next !== cur.body;
+      const visChanged = !cur || wantVis !== !!cur.show_on_inspection;
+      if (!textChanged && !visChanged) { el._editingId = null; document.getElementById(`expand-content-${id}`).innerHTML = el._renderTabContent('comments'); return; }
       btn.disabled = true;
-      await commentRpc('edit_comment', { p_comment_id: cid, p_body: next });
+      if (textChanged) await commentRpc('edit_comment', { p_comment_id: cid, p_body: next });
+      if (visChanged)  await commentRpc('set_comment_inspection_visibility', { p_comment_id: cid, p_visible: wantVis });
       el._editingId = null;
-      showToast('Comment updated');
+      showToast(visChanged ? (wantVis ? 'Saved · visible to drivers' : 'Saved · hidden from drivers') : 'Comment updated');
     } else if (action === 'delete') {
       if (!confirm('Delete this comment? It will also be removed from the inspection form.')) return;
       btn.disabled = true;
@@ -1071,7 +1076,8 @@ function renderExpanded(id, responses, defects, defectsByResp, woById = {}, note
                   : `<div class="cm-body">${escHtml(c.body)}</div>`}
                 <div class="cm-actions">
                   ${editing
-                    ? `<button class="cm-btn form-on" data-cm-action="save" data-cid="${cid}">Save</button>
+                    ? `<label class="cm-check"><input type="checkbox" id="cm-edit-vis-${cid}" ${on ? 'checked' : ''}> Show to drivers on the inspection form</label>
+                       <button class="cm-btn form-on" data-cm-action="save" data-cid="${cid}">Save</button>
                        <button class="cm-btn" data-cm-action="cancel" data-cid="${cid}">Cancel</button>`
                     : `<button class="cm-btn ${on ? '' : 'form-on'}" data-cm-action="toggle" data-cid="${cid}" data-on="${on}">${on ? 'Hide from drivers' : 'Show to drivers'}</button>
                        ${mine ? `<button class="cm-btn" data-cm-action="edit" data-cid="${cid}">✎ Edit</button>
