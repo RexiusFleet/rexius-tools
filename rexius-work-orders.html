@@ -109,6 +109,11 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
 .lane-count { font-family: var(--mono); font-size: 11px; color: var(--gray); }
 .lane-body { padding: 10px; display: flex; flex-direction: column; gap: 8px; min-height: 120px; }
 .lane-body.scrollable { max-height: 70vh; overflow-y: auto; }
+.lane-tools { display: flex; align-items: center; gap: 6px; }
+.lane-sort { font-family: var(--mono); font-size: 10px; padding: 3px 4px; border: 1px solid var(--border); background: var(--paper); color: var(--ink); cursor: pointer; outline: none; max-width: 110px; }
+.lane-dir { font-family: var(--mono); font-size: 11px; line-height: 1; padding: 3px 7px; border: 1px solid var(--border); background: var(--paper); color: var(--ink); cursor: pointer; }
+.lane-dir:hover, .lane-sort:hover { border-color: var(--green); color: var(--green); }
+.lane-dir:disabled { opacity: .35; cursor: default; border-color: var(--border); color: var(--ink); }
 
 .wo-card { background: var(--paper); border: 1px solid var(--border); border-left: 3px solid var(--border); padding: 11px 13px; cursor: pointer; transition: all .12s; position: relative; }
 .wo-card:hover { border-color: var(--green); box-shadow: 0 2px 8px rgba(0,0,0,.08); }
@@ -170,6 +175,11 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
 .assign-empty { font-size: 12px; color: var(--gray); padding: 6px 0; }
 
 .upd-list { display: flex; flex-direction: column; gap: 6px; max-height: 240px; overflow-y: auto; margin-top: 8px; }
+.cmt-list { display: flex; flex-direction: column; gap: 6px; max-height: 240px; overflow-y: auto; margin-top: 4px; }
+.cmt-row { background: var(--surface); border-left: 2px solid var(--blue); padding: 8px 10px; }
+.cmt-head { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; flex-wrap: wrap; }
+.cmt-on { font-family: var(--mono); font-size: 9px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; padding: 2px 6px; background: var(--blue-light); color: var(--blue); }
+.cmt-driver { font-family: var(--mono); font-size: 9px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; padding: 2px 6px; background: var(--amber-light); color: var(--amber); }
 .upd-row { background: var(--surface); border-left: 2px solid var(--border); padding: 8px 10px; }
 .upd-head { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; }
 .upd-by { font-family: var(--mono); font-size: 11px; color: var(--gray); }
@@ -333,8 +343,38 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
       <button class="m-btn" id="detailHistoryBtn" style="margin-right:auto">Vehicle History</button>
       <button class="m-btn danger" id="detailCancelBtn">Cancel WO</button>
       <button class="m-btn" data-close="detailModal">Close</button>
+      <button class="m-btn" id="detailReopenBtn" style="display:none">Reopen Work Order</button>
       <button class="m-btn primary" id="detailFollowUpBtn" style="display:none">Create Follow-up Work Order</button>
       <button class="m-btn primary" id="detailProgressBtn">Mark In Progress</button>
+    </div>
+  </div>
+</div>
+
+<!-- REOPEN WO MODAL -->
+<div class="modal-overlay" id="reopenModal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">Reopen Work Order</div>
+        <div class="modal-asset" id="reopenAsset">—</div>
+      </div>
+      <button class="modal-close" data-close="reopenModal">×</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:13px;color:#444;line-height:1.5">
+        This moves the work order back to <strong>In Progress</strong> so it can be adjusted. The reason is logged in the work order's updates.
+      </div>
+      <div id="reopenCdlNote" style="display:none;font-size:12px;color:var(--amber);background:#fffdf0;border-left:3px solid var(--amber);padding:8px 10px;margin-top:10px">
+        CDL unit: the §396.11 DVIR certification will be cleared and must be re-certified when the work order is completed again.
+      </div>
+      <div class="modal-section" style="margin-top:14px;margin-bottom:0">
+        <div class="modal-label">Reason (required)</div>
+        <textarea class="form-textarea" id="reopenReason" placeholder="e.g. Add missed parts invoice, correct labor hours..." style="width:100%;min-height:70px"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="m-btn" data-close="reopenModal">Cancel</button>
+      <button class="m-btn primary" id="reopenConfirmBtn">Reopen</button>
     </div>
   </div>
 </div>
@@ -569,6 +609,31 @@ function saveStatVisible() {
   try { localStorage.setItem('rexius_wo_stats', JSON.stringify(statVisible)); } catch(e) {}
 }
 
+// Per-lane board sort (persisted per browser). key: 'default' | 'opened' | 'activity'.
+// 'default' = the board's original ordering (priority → newest for Open/In Progress,
+// newest completion for Completed), so nothing changes until someone picks a sort.
+const LANE_SORT_DEFAULT = { open: { key: 'default', dir: 'desc' }, inprog: { key: 'default', dir: 'desc' }, done: { key: 'default', dir: 'desc' } };
+let laneSort = (() => {
+  try {
+    const saved = JSON.parse(localStorage.getItem('rexius_wo_lane_sort'));
+    if (saved && typeof saved === 'object') {
+      const out = {};
+      for (const k of Object.keys(LANE_SORT_DEFAULT)) {
+        const s = saved[k] || {};
+        out[k] = {
+          key: ['default', 'opened', 'activity'].includes(s.key) ? s.key : 'default',
+          dir: s.dir === 'asc' ? 'asc' : 'desc',
+        };
+      }
+      return out;
+    }
+  } catch(e) {}
+  return JSON.parse(JSON.stringify(LANE_SORT_DEFAULT));
+})();
+function saveLaneSort() {
+  try { localStorage.setItem('rexius_wo_lane_sort', JSON.stringify(laneSort)); } catch(e) {}
+}
+
 // ── Static event listeners ─────────────────────────────────────────
 document.getElementById('loginBtn').addEventListener('click', () => doLogin());
 document.getElementById('loginPass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
@@ -630,6 +695,19 @@ document.addEventListener('click', e => {
     return;
   }
 
+  // Board lane sort direction toggle
+  const dirBtn = e.target.closest('.lane-dir[data-lane]');
+  if (dirBtn) {
+    const s = laneSort[dirBtn.dataset.lane];
+    if (s && s.key !== 'default') {
+      s.dir = s.dir === 'asc' ? 'desc' : 'asc';
+      saveLaneSort();
+      render();
+    }
+    return;
+  }
+  if (e.target.closest('.lane-sort')) return; // don't let dropdown clicks fall through
+
   // WO cards and table rows
   const woCard = e.target.closest('[data-wo-id]');
   if (woCard) {
@@ -653,6 +731,18 @@ document.addEventListener('click', e => {
   if (!e.target.closest('.stat-toggle-wrap')) {
     document.getElementById('statTogglePanel').classList.remove('open');
   }
+});
+
+// Board lane sort field
+document.addEventListener('change', e => {
+  const sel = e.target.closest('.lane-sort[data-lane]');
+  if (!sel) return;
+  const s = laneSort[sel.dataset.lane];
+  if (!s) return;
+  s.key = sel.value;
+  s.dir = 'desc'; // newest first is the useful starting point for both date sorts
+  saveLaneSort();
+  render();
 });
 
 // ── Login ──────────────────────────────────────────────────────────
@@ -770,7 +860,7 @@ function toggleArchiveView() {
     newBtn.style.display = '';
     startAutoRefresh();
   }
-  loadData();
+  return loadData();
 }
 
 // ── Auto-refresh (shop job board) ──────────────────────────────────
@@ -857,7 +947,66 @@ function render() {
   else if (currentTab === 'week') renderTable(statsHtml, thisWeek, true);
 }
 
-function woCard(w) {
+// date_opened / date_completed are plain DATE columns ("YYYY-MM-DD"): read as local midnight
+// so they compare sensibly against real timestamps (notes, assignments, etc.).
+function dayMs(d) {
+  if (!d) return 0;
+  const t = new Date(String(d).length === 10 ? d + 'T00:00:00' : d).getTime();
+  return isNaN(t) ? 0 : t;
+}
+function tsMs(d) {
+  if (!d) return 0;
+  const t = new Date(d).getTime();
+  return isNaN(t) ? 0 : t;
+}
+
+// Most recent thing that happened on a WO: note/status update, (re)assignment,
+// expense/labor entry, photo, viewer comment (new or edited), certification,
+// completion — falling back to the open date.
+function lastActivityMs(w) {
+  let m = Math.max(dayMs(w.date_opened), dayMs(w.date_completed), tsMs(w.certified_at));
+  for (const u of (w.updates || []))     m = Math.max(m, tsMs(u.at));
+  for (const a of (w.assignments || [])) m = Math.max(m, tsMs(a.assigned_at));
+  for (const x of (w.expenses || []))    m = Math.max(m, tsMs(x.created_at));
+  for (const p of (w.photos || []))      m = Math.max(m, tsMs(p.taken_at));
+  for (const c of (w.comments || []))    m = Math.max(m, tsMs(c.created_at), tsMs(c.edited_at));
+  return m;
+}
+
+function sortLane(lane, list) {
+  const { key, dir } = laneSort[lane];
+  if (key === 'default') {
+    // Original board behavior: RPC order for Open/In Progress; newest completion for Completed
+    return lane === 'done'
+      ? [...list].sort((a, b) => dayMs(b.date_completed || b.date_opened) - dayMs(a.date_completed || a.date_opened))
+      : list;
+  }
+  const mult = dir === 'asc' ? 1 : -1;
+  const val  = key === 'activity' ? lastActivityMs : w => dayMs(w.date_opened);
+  // Tie-break on WO number (same direction) so same-day WOs don't shuffle on each refresh
+  return [...list].sort((a, b) =>
+    ((val(a) - val(b)) ||
+     String(a.work_order_number || '').localeCompare(String(b.work_order_number || ''), undefined, { numeric: true })) * mult);
+}
+
+function laneHeader(lane, title, count) {
+  const s = laneSort[lane];
+  const opt = (v, label) => `<option value="${v}"${s.key === v ? ' selected' : ''}>${label}</option>`;
+  const isDefault = s.key === 'default';
+  const arrow = isDefault ? '↕' : (s.dir === 'asc' ? '↑' : '↓');
+  const dirTitle = isDefault ? 'Pick a sort first' : (s.dir === 'asc' ? 'Oldest first — tap for newest first' : 'Newest first — tap for oldest first');
+  return `<div class="lane-header">
+    <span class="lane-title">${title} <span class="lane-count">${count}</span></span>
+    <span class="lane-tools">
+      <select class="lane-sort" data-lane="${lane}" aria-label="Sort ${title}">
+        ${opt('default', 'Default')}${opt('opened', 'Date opened')}${opt('activity', 'Last update')}
+      </select>
+      <button class="lane-dir" data-lane="${lane}" title="${dirTitle}" aria-label="${dirTitle}"${isDefault ? ' disabled' : ''}>${arrow}</button>
+    </span>
+  </div>`;
+}
+
+function woCard(w, dateMode) {
   const pri  = w.priority || 'normal';
   const mech = w.mechanic
     ? `<span class="wo-tag tag-mech">${w.mechanic}</span>`
@@ -873,25 +1022,28 @@ function woCard(w) {
       <span class="wo-tag tag-team">${esc(w.team || '—')}</span>
       ${w.shop ? `<span class="wo-tag tag-shop">${esc(w.shop)}</span>` : ''}
       ${mech}${cost}
-      <span class="wo-date">${fmtDate(w.date_opened)}</span>
+      ${dateMode === 'activity' && lastActivityMs(w)
+        ? `<span class="wo-date" title="Last update">upd ${esc(new Date(lastActivityMs(w)).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }))}</span>`
+        : `<span class="wo-date">${fmtDate(w.date_opened)}</span>`}
     </div>
   </div>`;
 }
 
 function renderBoard(stats, open, inprog, done) {
+  const cards = lane => list => sortLane(lane, list).map(w => woCard(w, laneSort[lane].key)).join('');
   document.getElementById('content').innerHTML = stats + `
     <div class="kanban">
       <div class="lane">
-        <div class="lane-header"><span class="lane-title">Open</span><span class="lane-count">${open.length}</span></div>
-        <div class="lane-body">${open.length ? open.map(woCard).join('') : '<div class="empty"><div class="empty-icon">✓</div><p>No open work orders</p></div>'}</div>
+        ${laneHeader('open', 'Open', open.length)}
+        <div class="lane-body">${open.length ? cards('open')(open) : '<div class="empty"><div class="empty-icon">✓</div><p>No open work orders</p></div>'}</div>
       </div>
       <div class="lane">
-        <div class="lane-header"><span class="lane-title">In Progress</span><span class="lane-count">${inprog.length}</span></div>
-        <div class="lane-body">${inprog.length ? inprog.map(woCard).join('') : '<div class="empty"><div class="empty-icon">🔧</div><p>Nothing in progress</p></div>'}</div>
+        ${laneHeader('inprog', 'In Progress', inprog.length)}
+        <div class="lane-body">${inprog.length ? cards('inprog')(inprog) : '<div class="empty"><div class="empty-icon">🔧</div><p>Nothing in progress</p></div>'}</div>
       </div>
       <div class="lane">
-        <div class="lane-header"><span class="lane-title">Completed</span><span class="lane-count">${done.length}</span></div>
-        <div class="lane-body scrollable">${done.length ? [...done].sort((a, b) => new Date(b.date_completed || b.date_opened || 0) - new Date(a.date_completed || a.date_opened || 0)).map(woCard).join('') : '<div class="empty"><div class="empty-icon">📋</div><p>None yet</p></div>'}</div>
+        ${laneHeader('done', 'Completed', done.length)}
+        <div class="lane-body scrollable">${done.length ? cards('done')(done) : '<div class="empty"><div class="empty-icon">📋</div><p>None yet</p></div>'}</div>
       </div>
     </div>`;
 }
@@ -1001,6 +1153,21 @@ function openDetail(id) {
           <div class="upd-text">${esc(u.text)}</div>
         </div>`).join('')
     : '<div class="assign-empty">No updates yet.</div>';
+
+  // Viewer comments (read-only here): on this WO, its defects, or the originating inspection.
+  const CMT_ON = { work_order: 'Work order', defect: 'Defect', inspection: 'Inspection' };
+  const commentsHtml = (w.comments && w.comments.length)
+    ? w.comments.map(c => `
+        <div class="cmt-row">
+          <div class="cmt-head">
+            <span class="cmt-on">${esc(CMT_ON[c.on] || 'Comment')}</span>
+            ${c.show_on_inspection ? '<span class="cmt-driver" title="Shown to drivers on the inspection form">Shown to drivers</span>' : ''}
+            <span class="upd-by">${esc(c.author) || '—'}</span>
+            <span class="upd-at">${fmtDateTime(c.created_at)}${c.edited_at ? ' · edited' : ''}</span>
+          </div>
+          <div class="upd-text">${esc(c.body)}</div>
+        </div>`).join('')
+    : '<div class="assign-empty">No viewer comments.</div>';
 
   const expenses = w.expenses || [];
   const expTotal = parseFloat(w.expenses_total || 0);
@@ -1155,6 +1322,11 @@ function openDetail(id) {
     </div>
 
     <div class="modal-section" style="margin-top:14px">
+      <div class="modal-label">Viewer Comments${(w.comments || []).length ? ` · ${(w.comments || []).length}` : ''}</div>
+      <div class="cmt-list">${commentsHtml}</div>
+    </div>
+
+    <div class="modal-section" style="margin-top:14px">
       <div class="modal-label">Photos</div>
       ${readOnly ? '' : `
       <div style="display:flex;gap:8px;align-items:center;margin-top:4px">
@@ -1232,6 +1404,11 @@ function openDetail(id) {
 
   document.getElementById('detailCancelBtn').style.display = readOnly ? 'none' : '';
 
+  // Reopen: any completed WO — on the board or in Previous Work Orders.
+  const rob = document.getElementById('detailReopenBtn');
+  rob.style.display = w.status === 'completed' ? '' : 'none';
+  rob.onclick = () => openReopen(w);
+
   const fub = document.getElementById('detailFollowUpBtn');
   fub.style.display = readOnly ? '' : 'none';
   fub.onclick = () => {
@@ -1263,6 +1440,57 @@ function openDetail(id) {
   document.getElementById('detailModal').classList.add('open');
   rpc('log_access', { p_tool_name: 'work-orders', p_user_name: currentUser, p_action: 'view_wo', p_metadata: { wo_id: id, asset: w.asset_number } });
 }
+
+// ── Reopen a completed work order ──────────────────────────────────
+let reopenTarget = null;
+function openReopen(w) {
+  reopenTarget = w;
+  document.getElementById('reopenAsset').textContent =
+    [w.asset_number, w.work_order_number, w.description].filter(Boolean).join(' · ');
+  const note = document.getElementById('reopenCdlNote');
+  // Archive payload doesn't carry is_cdl — show the warning conditionally there.
+  if (w.is_cdl === true) {
+    note.textContent = 'CDL unit: the §396.11 DVIR certification will be cleared and must be re-certified when the work order is completed again.';
+    note.style.display = '';
+  } else if (w.is_cdl === undefined) {
+    note.textContent = 'If this is a CDL unit, its §396.11 DVIR certification will be cleared and must be re-certified when the work order is completed again.';
+    note.style.display = '';
+  } else {
+    note.style.display = 'none';
+  }
+  document.getElementById('reopenReason').value = '';
+  document.getElementById('reopenModal').classList.add('open');
+  setTimeout(() => document.getElementById('reopenReason').focus(), 50);
+}
+
+document.getElementById('reopenConfirmBtn').addEventListener('click', async () => {
+  const w = reopenTarget;
+  if (!w) return;
+  const reason = document.getElementById('reopenReason').value.trim();
+  if (!reason) { showToast('Enter a reason for reopening'); return; }
+  const btn = document.getElementById('reopenConfirmBtn');
+  btn.disabled = true;
+  try {
+    const result = await rpc('reopen_work_order', { p_wo_id: w.id, p_reason: reason });
+    if (!result || !result.success) {
+      showToast(result?.message || 'Could not reopen work order');
+      return;
+    }
+    rpc('log_access', { p_tool_name: 'work-orders', p_user_name: currentUser, p_action: 'reopen_wo', p_metadata: { wo_id: w.id } });
+    closeModal('reopenModal');
+    closeModal('detailModal');
+    showToast('Work order reopened — now In Progress');
+    // A reopened WO lives on the active board; leave the archive view if we're in it.
+    if (viewMode === 'archive') await toggleArchiveView();
+    else await loadData(true);
+    openDetail(w.id);
+  } catch (e) {
+    console.error(e);
+    showToast('Could not reopen work order');
+  } finally {
+    btn.disabled = false;
+  }
+});
 
 // Refresh data and reopen this WO in place, keeping any unsubmitted typing
 // (half-written update or expense). File pickers can't be restored by browsers.
