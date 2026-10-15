@@ -157,6 +157,11 @@ body { font-family: var(--body); background: var(--surface); color: var(--ink); 
 .cm-btn.form-on { background: var(--blue); border-color: var(--blue); color: #fff; }
 .cm-btn.danger:hover { border-color: var(--red); color: var(--red); }
 .cm-vis-note { font-family: var(--mono); font-size: 10px; color: var(--gray); }
+.cm-status { font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; padding: 2px 7px; }
+.cm-status.on { background: var(--blue); color: #fff; }
+.cm-status.off { background: var(--paper); color: var(--gray); border: 1px solid var(--border); }
+.cm-edit { width: 100%; min-height: 64px; resize: vertical; font-family: var(--body); font-size: 13px; padding: 8px 10px; border: 1px solid var(--green); background: var(--paper); color: var(--ink); outline: none; }
+.cm-actions .cm-btn { font-size: 11px; padding: 5px 10px; }
 
 .expand-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
 .expand-tab { font-family: var(--mono); font-size: 11px; font-weight: 600; letter-spacing: .04em; padding: 7px 14px; cursor: pointer; color: var(--gray); border-bottom: 2px solid transparent; transition: all .1s; }
@@ -817,6 +822,9 @@ async function toggleExpand(id) {
 // Shown for an inspection: comments on the inspection itself, on its defects,
 // and on WOs spawned from those defects. New comments are anchored to the inspection.
 async function loadComments(inspId, defects, woIds) {
+  if (!currentAuthId) {
+    try { const { data: { session } } = await sbAuth.auth.getSession(); currentAuthId = session?.user?.id || null; } catch {}
+  }
   try {
     const ors = [`inspection_id.eq.${inspId}`];
     const defIds = defects.map(d => d.id);
@@ -872,12 +880,21 @@ async function onCommentAction(id, btn) {
       const on = btn.dataset.on !== 'true';
       await commentRpc('set_comment_inspection_visibility', { p_comment_id: cid, p_visible: on });
       showToast(on ? 'Now showing on the inspection form' : 'Hidden from the inspection form');
-    } else if (action === 'edit') {
+    } else if (action === 'edit' || action === 'cancel') {
+      // Inline edit: no fetch, just re-render the Comments tab with/without the editor.
+      el._editingId = action === 'edit' ? cid : null;
+      document.getElementById(`expand-content-${id}`).innerHTML = el._renderTabContent('comments');
+      if (action === 'edit') { const ta = el.querySelector(`#cm-edit-${CSS.escape(cid)}`); if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); } }
+      return;
+    } else if (action === 'save') {
+      const ta = el.querySelector(`#cm-edit-${CSS.escape(cid)}`);
+      const next = (ta?.value || '').trim();
+      if (!next) { showToast('Comment can\'t be empty — use Delete instead'); return; }
       const cur = el._comments.list.find(c => c.id === cid);
-      const next = prompt('Edit comment', cur ? cur.body : '');
-      if (next == null || !next.trim() || (cur && next.trim() === cur.body)) return;
+      if (cur && next === cur.body) { el._editingId = null; document.getElementById(`expand-content-${id}`).innerHTML = el._renderTabContent('comments'); return; }
       btn.disabled = true;
       await commentRpc('edit_comment', { p_comment_id: cid, p_body: next });
+      el._editingId = null;
       showToast('Comment updated');
     } else if (action === 'delete') {
       if (!confirm('Delete this comment? It will also be removed from the inspection form.')) return;
@@ -1036,21 +1053,31 @@ function renderExpanded(id, responses, defects, defectsByResp, woById = {}, note
         : !comments.list.length
           ? '<div class="mn-empty" style="padding:4px 0">No comments yet.</div>'
           : `<div class="cm-list">${comments.list.map(c => {
-              const mine = currentAuthId && c.author_auth_id === currentAuthId;
+              // Edit/Delete: shown to the author (and whenever the session id isn't known yet).
+              // The server enforces author-or-admin either way and the toast says so if refused.
+              const mine = !currentAuthId || c.author_auth_id === currentAuthId;
               const on = !!c.show_on_inspection;
+              const cid = escHtml(c.id);
+              const editing = document.getElementById(`expand-${id}`)?._editingId === c.id;
               return `<div class="cm-item ${on ? 'on-form' : ''}">
                 <div class="cm-meta">
+                  <span class="cm-status ${on ? 'on' : 'off'}">${on ? '👁 Visible to drivers' : 'Viewer only'}</span>
                   <b>${escHtml(c.author_name || '—')}</b>
                   <span>${escHtml(fmtTs(c.created_at))}${c.edited_at ? ' · edited' : ''}</span>
                   <span class="cm-anchor">${escHtml(anchorLabel(c))}</span>
                 </div>
-                <div class="cm-body">${escHtml(c.body)}</div>
+                ${editing
+                  ? `<textarea class="cm-edit" id="cm-edit-${cid}" maxlength="2000">${escHtml(c.body)}</textarea>`
+                  : `<div class="cm-body">${escHtml(c.body)}</div>`}
                 <div class="cm-actions">
-                  <button class="cm-btn ${on ? 'form-on' : ''}" data-cm-action="toggle" data-cid="${escHtml(c.id)}" data-on="${on}">${on ? '👁 On inspection form' : '🚫 Not on inspection form'}</button>
-                  ${c.visibility_changed_by ? `<span class="cm-vis-note">${on ? 'shown' : 'hidden'} by ${escHtml(c.visibility_changed_by)}${c.visibility_changed_at ? ' · ' + escHtml(fmtTs(c.visibility_changed_at)) : ''}</span>` : ''}
+                  ${editing
+                    ? `<button class="cm-btn form-on" data-cm-action="save" data-cid="${cid}">Save</button>
+                       <button class="cm-btn" data-cm-action="cancel" data-cid="${cid}">Cancel</button>`
+                    : `<button class="cm-btn ${on ? '' : 'form-on'}" data-cm-action="toggle" data-cid="${cid}" data-on="${on}">${on ? 'Hide from drivers' : 'Show to drivers'}</button>
+                       ${mine ? `<button class="cm-btn" data-cm-action="edit" data-cid="${cid}">✎ Edit</button>
+                       <button class="cm-btn danger" data-cm-action="delete" data-cid="${cid}">✕ Delete</button>` : ''}`}
                   <span style="flex:1"></span>
-                  ${mine ? `<button class="cm-btn" data-cm-action="edit" data-cid="${escHtml(c.id)}">Edit</button>
-                  <button class="cm-btn danger" data-cm-action="delete" data-cid="${escHtml(c.id)}">Delete</button>` : ''}
+                  ${c.visibility_changed_by ? `<span class="cm-vis-note">${on ? 'shown' : 'hidden'} by ${escHtml(c.visibility_changed_by)}${c.visibility_changed_at ? ' · ' + escHtml(fmtTs(c.visibility_changed_at)) : ''}</span>` : ''}
                 </div>
               </div>`;
             }).join('')}</div>`;
