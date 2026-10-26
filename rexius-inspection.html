@@ -424,6 +424,9 @@ const T = {
     vsMi: 'mi',
     vsHrs: 'hrs',
     vsCommentsTitle: 'Notes from Management',
+    lastRecorded: 'Last recorded',
+    meterRequired: 'Enter the engine hours from the hour meter before submitting.',
+    meterLowConfirm: (val, prior) => `You entered ${val}, but the last recorded reading was ${prior}.\n\nHour meters should only go up. Check the meter again.\n\nPress OK if ${val} is correct (it will be flagged for review), or Cancel to fix it.`,
   },
   es: {
     typeCardLabel: 'Tipo de Inspección', driverCardLabel: 'Conductor / Operador',
@@ -482,6 +485,9 @@ const T = {
     vsMi: 'mi',
     vsHrs: 'hrs',
     vsCommentsTitle: 'Notas de la Gerencia',
+    lastRecorded: 'Último registro',
+    meterRequired: 'Ingrese las horas del motor del horómetro antes de enviar.',
+    meterLowConfirm: (val, prior) => `Ingresó ${val}, pero la última lectura registrada fue ${prior}.\n\nEl horómetro solo debe subir. Revise el horómetro de nuevo.\n\nPresione Aceptar si ${val} es correcto (se marcará para revisión), o Cancelar para corregirlo.`,
   }
 };
 const t = k => T[lang][k] || T.en[k] || k;
@@ -489,6 +495,15 @@ const esc = s => s == null ? '' : String(s).replace(/[&<>"']/g, c => ({'&':'&amp
 
 // ── Vehicle status / prior defect summary ──────────────────────────
 let _priorCache = {};
+// Last meter reading on file for the current asset, from get_prior_trip_defects.last_meter
+// (added 10/26). Returns { value, at } or null when there's no reading yet.
+function lastMeter(type) {
+  const m = asset && _priorCache[asset.id]?.last_meter;
+  if (!m) return null;
+  const value = type === 'odometer' ? m.odometer : m.engine_hours;
+  if (value == null) return null;
+  return { value: Number(value), at: type === 'odometer' ? m.odometer_at : m.engine_hours_at };
+}
 async function fetchPriorData(assetId) {
   if (_priorCache[assetId]) return _priorCache[assetId];
   const r = await fetch(`${SUPA}/rest/v1/rpc/get_prior_trip_defects`, {
@@ -620,6 +635,31 @@ document.getElementById('differentVehicleBtn').addEventListener('click', () => {
 });
 
 function handleSubmitClick() {
+  // Meter readings (10/26): required meter items must be filled; a reading below the last
+  // one on file must be confirmed by the operator. Confirmed low readings still submit —
+  // the server records them and flags them for review in asset_meters.
+  for (const item of formItems.filter(i => i.meter_type && isVisible(i))) {
+    const resp = responses[item.id] || {};
+    const raw = (resp.value ?? '').toString().trim();
+    const focusIt = () => {
+      const el = document.querySelector(`.check-number[data-item-id="${item.id}"]`);
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el?.focus();
+    };
+    if (!raw) {
+      if (item.is_required) { alert(t('meterRequired')); focusIt(); return; }
+      continue;
+    }
+    const val = parseFloat(raw);
+    const last = lastMeter(item.meter_type);
+    if (last && !isNaN(val) && val < last.value) {
+      if (resp.meterConfirmedValue !== raw) {
+        const ok = confirm(t('meterLowConfirm')(val.toLocaleString(), last.value.toLocaleString()));
+        if (!ok) { focusIt(); return; }
+        responses[item.id].meterConfirmedValue = raw;
+      }
+    }
+  }
   const failures = formItems.filter(i => isVisible(i) && responses[i.id]?.value === 'fail');
   // Failed items that ask which unit has the problem must be answered before review.
   const unitMissing = failures.filter(i => askUnit(i) && i.parent_item_id && !responses[i.id]?.unit);
@@ -1051,6 +1091,9 @@ async function assetHasOverride(assetId) {
 async function getTypes() {
   const ref = (teamRef||'').toLowerCase();
   const num = (asset?.asset_number||'').toLowerCase();
+  // Front-end loaders (asset_subtype backfilled 10/26): pre-shift only. Must come before
+  // the team checks — loaders live on Yard 1 / Portland Blower / Retail Yard, not Equipment.
+  if (asset?.asset_subtype === 'loader') return ['equip_preshift'];
   if (ref.includes('equipment')) return ['equip_preshift','equip_postshift'];
   if (num.startsWith('ge-')) return ['equip_preshift','equip_postshift'];
   // asset_subtype is the reliable trailer signal (backfilled 9/17 + 9/23). The name check
@@ -1487,10 +1530,18 @@ function renderChecklist() {
         ${hasFail ? renderDefectPanel(item, resp) : ''}
       </div>`;
     } else if (item.item_type === 'number') {
+      // Meter items (meter_type set, 10/26) show the last reading on file so the operator
+      // can sanity-check before submitting. Readings feed asset_meters / PM scheduling.
+      const last = item.meter_type ? lastMeter(item.meter_type) : null;
+      const unit = item.meter_type === 'odometer' ? t('vsMi') : t('vsHrs');
+      const lastHint = last
+        ? `<div style="font-family:var(--mono);font-size:11px;color:var(--gray);margin-top:4px">${esc(t('lastRecorded'))}: ${esc(Number(last.value).toLocaleString())} ${esc(unit)}${last.at ? ' · ' + esc(new Date(last.at).toLocaleDateString(lang === 'es' ? 'es-MX' : 'en-US', { month: 'short', day: 'numeric', year: 'numeric' })) : ''}</div>`
+        : '';
       html += `<div class="check-item" id="ci-${item.id}">
         <div class="check-row" style="flex-direction:column;align-items:flex-start">
-          <div class="check-label">${label}</div>
+          <div class="check-label">${label}${item.meter_type && item.is_required ? ' *' : ''}</div>
           <input type="number" class="check-number" data-item-id="${item.id}" placeholder="0" value="${resp.value || ''}">
+          ${lastHint}
         </div>
       </div>`;
     } else if (item.item_type === 'select') {
@@ -1765,7 +1816,8 @@ function setSev(id, sev) { if (!responses[id]) responses[id] = {}; responses[id]
 function updateProgress() {
   const pfItems = formItems.filter(i => i.item_type === 'pass_fail' && isVisible(i));
   const selItems = formItems.filter(i => i.item_type === 'select' && i.is_required && isVisible(i));
-  const allRequired = [...pfItems, ...selItems];
+  const meterItems = formItems.filter(i => i.item_type === 'number' && i.meter_type && i.is_required && isVisible(i));
+  const allRequired = [...pfItems, ...selItems, ...meterItems];
   const answered = allRequired.filter(i => responses[i.id]?.value).length;
   const total = allRequired.length;
   const pct = total ? Math.round(answered / total * 100) : 0;
@@ -1864,6 +1916,12 @@ async function submitInspection() {
       // text. matched_asset_id is a new, additive key — the RPC reads it if present and
       // ignores it otherwise, so this stays backward compatible with older cached pages.
       if (isTrailerNumberItem(item)) row.matched_asset_id = resp.trailerAssetId || null;
+      // Meter items: tell the RPC whether the operator confirmed a reading below the last
+      // one (additive key, ignored by older RPC bodies). Only true when the confirmed value
+      // is the value actually being submitted.
+      if (item.meter_type && resp.value != null && resp.value !== '') {
+        row.meter_confirmed = resp.meterConfirmedValue === String(resp.value).trim();
+      }
       return row;
     });
 
